@@ -19,7 +19,6 @@
         </header>
         <div class="calendar-body">
             <div class="showdate text-align-center h3" id="showdate"></div>
-            
             <ul class="calendar-weekdays">
                 <li>Sun</li>
                 <li>Mon</li>
@@ -154,6 +153,13 @@
         }
     </style>
     <script>
+        let tg = window.Telegram.WebApp;
+
+        tg.expand()
+
+        tg.MainButton.textColor = "#FFFFFF";
+        tg.MainButton.color = "#2cab37";
+
         let date=new Date(); // creates a new date object with the current date and time
         let year=date.getFullYear(); // gets the current year
         let month=date.getMonth(); // gets the current month (index based, 0-11)
@@ -245,6 +251,17 @@
                 manipulate();
             });
             });
+        Telegram.WebApp.onEvent("mainButtonClicked", function(){
+            tg.sendData(date);
+        });
+
+        let showdate = document.getElementById("showdate");
+        let p = document.createElement("p")
+
+        p.innerText = `${tg.initDataUnsafe.first_name}
+        ${tg.initDataUnsafe.last_name}`;
+
+        showdate.appendChild(p)
     </script>
 </body>
 
