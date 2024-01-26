@@ -5,10 +5,6 @@ tg.expand()
 tg.MainButton.textColor = "#FFFFFF";
 tg.MainButton.color = "#2cab37";
 
-let item = "";
-
-let btn1 = document.getElementById("btn1")
-
 
 let date = new Date();
 let year = date.getFullYear();
@@ -86,6 +82,19 @@ const manipulate = () => {
 	// update the HTML of the dates element 
 	// with the generated calendar
 	day.innerHTML = lit;
+
+	// Select all the days in the calendar
+    const days = document.querySelectorAll(".calendar-dates li");
+
+    // Attach a click event listener to each day
+    days.forEach((dayElement, index) => {
+        dayElement.addEventListener("click", () => {
+            // Update the date variable with the clicked day
+            date = new Date(year, month, index + 1);
+            console.log(date);  // Log the new date to the console
+			tg.sendData(date);
+        });
+    });
 }
 
 manipulate();
@@ -133,7 +142,7 @@ Telegram.WebApp.onEvent("mainButtonClicked", function(){
 let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
 
-p.innerText = `${tg.initDataUnsafe.user.first_name}
-${tg.initDataUnsafe.user.last_name}`;
+p.innerText = `${tg.initDataUnsafe.first_name}
+${tg.initDataUnsafe.last_name}`;
 
 showdate.appendChild(p)
