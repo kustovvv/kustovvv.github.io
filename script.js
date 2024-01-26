@@ -93,7 +93,10 @@ const manipulate = () => {
             date = new Date(year, month, index + 1);
 			let dateString = date.toISOString().split('T')[0];
             console.log(date);  // Log the new date to the console
-			tg.sendData(dateString);
+			Telegram.WebApp.onEvent("mainButtonClicked", function(){
+				tg.sendData(dateString); // Move this line inside the callback function
+			});
+			
         });
     });
 }
@@ -144,6 +147,5 @@ let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
 
 p.innerText = `${tg.initDataUnsafe.user.first_name} ${tg.initDataUnsafe.user.last_name} ${tg.initDataUnsafe.user.id}`;
-
 
 showdate.appendChild(p)
