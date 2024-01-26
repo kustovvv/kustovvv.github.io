@@ -91,9 +91,9 @@ const manipulate = () => {
         dayElement.addEventListener("click", () => {
             // Update the date variable with the clicked day
             date = new Date(year, month, index + 1);
-	    let dateString = date.toISOString().split('T')[0];
+			let dateString = date.toISOString().split('T')[0];
             console.log(date);  // Log the new date to the console
-	    tg.sendData("Some string text from JS code");
+			tg.sendData(dateString);
         });
     });
 }
@@ -143,7 +143,7 @@ Telegram.WebApp.onEvent("mainButtonClicked", function(){
 let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
 
-p.innerText = `${tg.initDataUnsafe.first_name}
-${tg.initDataUnsafe.last_name}`;
+p.innerText = `${tg.initDataUnsafe.user.first_name}
+${tg.initDataUnsafe.user.last_name}`;
 
 showdate.appendChild(p)
