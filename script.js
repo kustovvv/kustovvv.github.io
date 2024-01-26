@@ -86,16 +86,16 @@ const manipulate = () => {
 	// Select all the days in the calendar
     const days = document.querySelectorAll(".calendar-dates li");
 
-    // Attach a click event listener to each day
-    days.forEach((dayElement, index) => {
-        dayElement.addEventListener("click", () => {
-            // Update the date variable with the clicked day
-            date = new Date(year, month, index + 1);
-			let dateString = date.toISOString().split('T')[0];
-            console.log(date);  // Log the new date to the console
-			tg.sendData(dateString);
-        });
-    });
+   //  // Attach a click event listener to each day
+   //  days.forEach((dayElement, index) => {
+   //      dayElement.addEventListener("click", () => {
+   //          // Update the date variable with the clicked day
+   //          date = new Date(year, month, index + 1);
+			// let dateString = date.toISOString().split('T')[0];
+   //          console.log(date);  // Log the new date to the console
+			// tg.sendData(dateString);
+   //      });
+   //  });
 }
 
 manipulate();
