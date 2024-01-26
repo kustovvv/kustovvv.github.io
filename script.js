@@ -86,16 +86,16 @@ const manipulate = () => {
 	// Select all the days in the calendar
     const days = document.querySelectorAll(".calendar-dates li");
 
-   //  // Attach a click event listener to each day
-   //  days.forEach((dayElement, index) => {
-   //      dayElement.addEventListener("click", () => {
-   //          // Update the date variable with the clicked day
-   //          date = new Date(year, month, index + 1);
-			// let dateString = date.toISOString().split('T')[0];
-   //          console.log(date);  // Log the new date to the console
-			// tg.sendData(dateString);
-   //      });
-   //  });
+    // Attach a click event listener to each day
+    days.forEach((dayElement, index) => {
+        dayElement.addEventListener("click", () => {
+            // Update the date variable with the clicked day
+            date = new Date(year, month, index + 1);
+			let dateString = date.toISOString().split('T')[0];
+            console.log(date);  // Log the new date to the console
+			tg.sendData(dateString);
+        });
+    });
 }
 
 manipulate();
@@ -143,8 +143,7 @@ Telegram.WebApp.onEvent("mainButtonClicked", function(){
 let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
 
-p.innerText = `${tg.initDataUnsafe.user.first_name}
-${tg.initDataUnsafe.user.last_name}
-${tg.initDataUnsafe.user.id}`;
+p.innerText = `${tg.initDataUnsafe.user.first_name} ${tg.initDataUnsafe.user.last_name} ${tg.initDataUnsafe.user.id}`;
+
 
 showdate.appendChild(p)
