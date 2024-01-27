@@ -99,9 +99,6 @@ const manipulate = () => {
 			tg.MainButton.setText("Date send");
 			tg.MainButton.show();
 			tg.sendData(message)
-			Telegram.WebApp.onEvent("mainButtonClicked", function(){
-				tg.sendData(message);
-			});
         });
     });
 }
@@ -144,8 +141,11 @@ prenexIcons.forEach(icon => {
 	});
 });
 
+
+message = "You clicked on the main button!"
+
 Telegram.WebApp.onEvent("mainButtonClicked", function(){
-    tg.sendData(date);
+	tg.sendData(message);
 });
 
 let showdate = document.getElementById("showdate");
