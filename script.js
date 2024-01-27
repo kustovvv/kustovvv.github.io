@@ -94,9 +94,14 @@ const manipulate = () => {
 			let dateString = date.toISOString().split('T')[0];
             console.log(date);  // Log the new date to the console
 
-			tg.MainButton.setText("Date sended");
+			let message;
+			message = "It's a data from js"
+			tg.MainButton.setText("Date send");
 			tg.MainButton.show();
-			tg.sendData(dateString);			
+			tg.sendData(message)
+			Telegram.WebApp.onEvent("mainButtonClicked", function(){
+				tg.sendData(message);
+			});
         });
     });
 }
