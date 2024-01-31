@@ -1,0 +1,238 @@
+* {
+	margin: 0;
+	padding: 0;
+	font-family: 'Poppins', sans-serif;
+}
+
+.time {
+	width: 120px;
+	padding: 8px;
+	border: 1px solid #ccc;
+	border-radius: 50px;
+	box-sizing: border-box;
+	font-size: 14px;
+	text-align: center;
+}
+
+body {
+	display: flex;
+	background: #ef62da;
+	min-height: 100vh;
+	padding: 0 10px;
+	align-items: center;
+	justify-content: center;
+}
+
+.calendar-container {
+	background: #fff;
+	width: 450px;
+	border-radius: 10px;
+	box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+}
+
+.calendar-container header {
+	display: flex;
+	align-items: center;
+	padding: 25px 30px 10px;
+	justify-content: space-between;
+}
+
+header .calendar-navigation {
+	display: flex;
+}
+
+header .calendar-navigation span {
+	height: 38px;
+	width: 38px;
+	margin: 0 1px;
+	cursor: pointer;
+	text-align: center;
+	line-height: 38px;
+	border-radius: 50%;
+	user-select: none;
+	color: #aeabab;
+	font-size: 1.9rem;
+}
+
+.calendar-navigation span:last-child {
+	margin-right: -10px;
+}
+
+header .calendar-navigation span:hover {
+	background: #f2f2f2;
+}
+
+header .calendar-current-date {
+	font-weight: 500;
+	font-size: 1.45rem;
+}
+
+.calendar-body {
+	padding-block: 10px;
+	margin-right: 30px;
+	text-align: center;
+}
+
+.calendar-body ul {
+	list-style: none;
+	flex-wrap: wrap;
+	display: flex;
+	text-align: center;
+}
+
+.calendar-body .calendar-dates {
+	margin-bottom: 20px;
+}
+
+.calendar-body li {
+	width: calc(100% / 7);
+	font-size: 1.07rem;
+	color: #414141;
+}
+
+.calendar-body .calendar-weekdays li {
+	cursor: default;
+	font-weight: 500;
+}
+
+.calendar-body .calendar-dates li {
+	margin-top: 30px;
+	position: relative;
+	z-index: 1;
+	cursor: pointer;
+}
+
+.calendar-dates li.inactive {
+	color: #aaa;
+}
+
+.calendar-dates li.active {
+	color: #fff;
+	transition: background-color 0.3s ease;
+}
+
+.calendar-dates li.clicked {
+	color: #fff;
+	transition: background-color 0.3s ease;
+}
+
+.calendar-dates li.fullBlocked {
+	color: #ff0000;
+	/* background: #4285f4; */
+	transition: background-color 0.3s ease;
+}
+
+.calendar-dates li::before {
+	position: absolute;
+	content: "";
+	z-index: -1;
+	top: 50%;
+	left: 50%;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+}
+
+.calendar-dates li.active::before {
+	background: #4285f4;
+	transition: background-color 0.3s ease;
+}
+
+.calendar-dates li.fullBlocked::before {
+	background: #4285f4;
+	transition: background-color 0.3s ease;
+}
+
+.calendar-dates li.clicked::before {
+	background: #aaa;
+	transition: background-color 0.3s ease;
+}
+
+.calendar-dates li:not(.active):hover::before {
+	background: #e4e1e1;
+}
+
+.calendar-dates li.hoursBlocked {
+	font-size: 11px; /* Set the font size to a smaller value */
+	text-align: center; /* Center the text horizontally */
+	padding: 1px;
+	border-radius: 20%;
+	border: 1px solid #ccc; /* Add a border with a light gray color */
+	color: #414141;
+	background-color: #f7f7f7; /* Set a light background color */
+	margin-top: 25px;
+	/* height: 45px; Set a fixed height */
+    /* overflow: auto; Add a scrollbar if the content overflows */
+  }
+
+
+.slider-handle {
+	background-color: #4285f4;
+	border: 1px solid #ffffff;
+	height: 20px;
+	width: 20px;
+	border-radius: 10%;
+}
+
+.rounded-button {
+	display: inline-block;
+	padding: 5px 20px;
+	border-radius: 30px;
+	/* border: none; */
+	background-color: #4285f4;
+	color: #ffffff;
+	text-align: center;
+	font-size: 16px;
+	cursor: pointer;
+}
+
+.select-button {
+	display: inline-block;
+	padding: 5px 20px;
+	border-radius: 30px;
+	/* border: none; */
+	background-color: #ccc;
+	color: #ffffff;
+	text-align: center;
+	font-size: 16px;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+.confirm-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #4caf50;
+    color: #fff;
+	font-size: 1.45rem;
+    border: none;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    cursor: default;
+	box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+	transition: background-color 0.3s ease;
+}
+
+.confirm-button.clicked {
+	background-color: #45a049; /* Adjust the color for the clicked state */
+}
+
+#cancel-range-button {
+    opacity: 1;
+    transition: opacity 0.5s ease; /* Adjust the duration and easing as needed */
+}
+
+#cancel-range-button.hidden {
+    opacity: 0;
+    pointer-events: none; /* To make the button not clickable when hidden */
+}
+
+.time-error {
+    border: 2px solid red;
+}
+
+.error-message {
+    color: red;
+    font-size: 12px;
+}
