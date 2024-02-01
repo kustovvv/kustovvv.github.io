@@ -635,6 +635,7 @@ confirmButton.addEventListener('click', function (event) {
 	tg.MainButton.show();
 });
 
+const mainButton = window.Telegram.WebApp.MainButton;
 mainButton.onClick(function(event){
 	event.preventDefault();
 	window.Telegram.WebApp.sendData("Send data with Main button");
