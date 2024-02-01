@@ -630,17 +630,20 @@ confirmButton.addEventListener('click', function (event) {
 	tg.sendData('Send data with confirm button');
 	event.preventDefault();
 
-	tg.MainButton.setText("Date send");
-	tg.MainButton.enable();
-	tg.MainButton.show();
+	const mainButton = window.Telegram.WebApp.MainButton;
+
+	mainButton.setText("Date send");
+	mainButton.enable();
+	mainButton.show();
+
+	mainButton.onClick(function(event){
+		event.preventDefault();
+		window.Telegram.WebApp.sendData("Send data with Main button");
+		event.preventDefault();
+	});
+	
 });
 
-const mainButton = window.Telegram.WebApp.MainButton;
-mainButton.onClick(function(event){
-	event.preventDefault();
-	window.Telegram.WebApp.sendData("Send data with Main button");
-	event.preventDefault();
-});
 
 
 
