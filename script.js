@@ -5,12 +5,12 @@ let tg = window.Telegram.WebApp;
 tg.MainButton.textColor = "#FFFFFF";
 tg.MainButton.color = "#2cab37";
 
-let message = tg.initDataUnsafe.user.first_name;
+let message = tg.initDataUnsafe.data;
 const labelmessage = document.getElementById('label-message');
 if (!message) {
 	message = tg.initData.data;
 	if (!message) {
-		message = tg.initDataUnsafe.data;
+		message = tg.initDataUnsafe.user.first_name;
 		if (!message) {
 			message = "No message";
 		}
