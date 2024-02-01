@@ -623,6 +623,8 @@ let setTime = () => {
 	});
 }
 
+const mainButton = window.Telegram.WebApp.MainButton;
+
 confirmButton.addEventListener('click', function (event) {
     // console.log("Selected dates: ", selectedDates);
 	// console.log("Clicked dates: ", clickedDates);
@@ -630,20 +632,17 @@ confirmButton.addEventListener('click', function (event) {
 	tg.sendData('Send data with confirm button');
 	event.preventDefault();
 
-	const mainButton = window.Telegram.WebApp.MainButton;
 
 	mainButton.setText("Date send");
 	mainButton.enable();
-	mainButton.show();
-
-	mainButton.onClick(function(event){
-		event.preventDefault();
-		window.Telegram.WebApp.sendData("Send data with Main button");
-		event.preventDefault();
-	});
-	
+	mainButton.show();	
 });
 
+mainButton.onClick(function(event){
+	event.preventDefault();
+	window.Telegram.WebApp.sendData("Send data with Main button");
+	event.preventDefault();
+});
 
 
 
