@@ -247,6 +247,7 @@ function manipulate() {
     days.forEach((dayElement, index) => {	
 	dayElement.addEventListener("click", (event) => {
 		handleDayClick(dayElement, index);
+		event.preventDefault();
 		// Update the date variable with the clicked day
 		date = new Date(year, month, index + 1);
 		let dateString = date.toISOString().split('T')[0];
@@ -257,7 +258,6 @@ function manipulate() {
 		tg.MainButton.enable();
 		tg.MainButton.show();
 		tg.sendData(dateString);
-		event.preventDefault();
         });
     });
 
