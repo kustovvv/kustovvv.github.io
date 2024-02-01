@@ -5,9 +5,13 @@ tg.expand()
 tg.MainButton.textColor = "#FFFFFF";
 tg.MainButton.color = "#2cab37";
 
-const message = tg.initDataUnsafe.data;
+let message = tg.initDataUnsafe.data;
 const labelmessage = document.getElementById('label-message');
+if (!message) {
+	message = "No message"
+}
 labelmessage.value = message;
+
 
 let date = new Date();
 let year = date.getFullYear();
