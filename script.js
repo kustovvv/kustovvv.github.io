@@ -623,9 +623,15 @@ let setTime = () => {
 }
 
 confirmButton.addEventListener('click', function () {
-    console.log("Selected dates: ", selectedDates);
-	console.log("Clicked dates: ", clickedDates);
-	tg.sendData('Your message');
+    	// console.log("Selected dates: ", selectedDates);
+	// console.log("Clicked dates: ", clickedDates);
+	tg.sendData('Send data with confirm button');
+	
+	let message;
+	tg.MainButton.setText("Date send");
+	tg.MainButton.enable();
+	tg.MainButton.show();
+	tg.sendData("Send data with Main button");
 });
 
 
