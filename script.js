@@ -5,10 +5,10 @@ tg.expand()
 tg.MainButton.textColor = "#FFFFFF";
 tg.MainButton.color = "#2cab37";
 
-let message = tg.initDataUnsafe.data;
+let message = tg.initDataUnsafe.data.text;
 const labelmessage = document.getElementById('label-message');
 if (!message) {
-	message = "No message"
+	message = "No message";
 }
 labelmessage.value = message;
 
