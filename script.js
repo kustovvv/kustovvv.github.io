@@ -244,21 +244,19 @@ function manipulate() {
 	}
 
     // Attach a click event listener to each day
-    days.forEach((dayElement, index) => {
-			
-		dayElement.addEventListener("click", () => {
-			handleDayClick(dayElement, index);
-            // Update the date variable with the clicked day
-            // date = new Date(year, month, index + 1);
-			// let dateString = date.toISOString().split('T')[0];
-            // console.log(date);  // Log the new date to the console
+    days.forEach((dayElement, index) => {	
+	dayElement.addEventListener("click", () => {
+		handleDayClick(dayElement, index);
+		// Update the date variable with the clicked day
+		date = new Date(year, month, index + 1);
+		let dateString = date.toISOString().split('T')[0];
+		console.log(date);  // Log the new date to the console
 
-			// let message;
-			// message = "It's a data from js"
-			// tg.MainButton.setText("Date send");
-			// tg.MainButton.enable();
-			// tg.MainButton.show();
-			// tg.sendData(message)
+		let message;
+		tg.MainButton.setText("Date send");
+		tg.MainButton.enable();
+		tg.MainButton.show();
+		tg.sendData(dateString);
         });
     });
 
