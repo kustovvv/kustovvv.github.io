@@ -634,7 +634,7 @@ confirmButton.addEventListener('click', function () {
 		
 	// });
 	// let dateString = date.toISOString().split('T')[0];
-	tg.sendData(JSON.stringify(selectedDates));
+	tg.sendData(selectedDates);
 	tg.expand();
 });
 
