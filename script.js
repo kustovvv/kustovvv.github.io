@@ -10,7 +10,10 @@ const labelmessage = document.getElementById('label-message');
 if (!message) {
 	message = tg.initData.data;
 	if (!message) {
-		message = tg.initDataUnsafe.user.first_name;
+		message = tg.initDataUnsafe.user;
+		if (message) {
+			message = message.first_name;
+		}
 		if (!message) {
 			message = "No message";
 		}
