@@ -246,12 +246,14 @@ function manipulate() {
     // Attach a click event listener to each day
     days.forEach((dayElement, index) => {
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
-		dayElement.addEventListener("click", function () {
+		dayElement.addEventListener("click", function (event) {
+			event.preventDefault();
 			handleDayClick(dayElement, index);
             date = new Date(year, month, index + 1);
 			let dateString = date.toISOString().split('T')[0];
 			tg.sendData(dateString);
-			return false;
+			tg.expand();
+			alert("Data sent to Telegram bot. Web app will stay open.");
         });
     });
 
