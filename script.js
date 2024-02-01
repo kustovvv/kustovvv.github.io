@@ -246,13 +246,12 @@ function manipulate() {
     // Attach a click event listener to each day
     days.forEach((dayElement, index) => {
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
-		dayElement.addEventListener("click", async function (event) {
+		dayElement.addEventListener("click", function () {
 			handleDayClick(dayElement, index);
-			event.preventDefault();
             date = new Date(year, month, index + 1);
 			let dateString = date.toISOString().split('T')[0];
-			await tg.sendData(dateString);
-			event.preventDefault();
+			tg.sendData(dateString);
+			return false;
         });
     });
 
