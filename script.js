@@ -244,20 +244,22 @@ function manipulate() {
 	}
 
     // Attach a click event listener to each day
-    days.forEach((dayElement, index) => {	
-	dayElement.addEventListener("click", (event) => {
-		handleDayClick(dayElement, index);
-		event.preventDefault();
-		// Update the date variable with the clicked day
-		date = new Date(year, month, index + 1);
-		let dateString = date.toISOString().split('T')[0];
-		console.log(date);  // Log the new date to the console
-	
-		let message;
-		tg.MainButton.setText("Date send");
-		tg.MainButton.enable();
-		tg.MainButton.show();
-		tg.sendData(dateString);
+    days.forEach((dayElement, index) => {
+			
+		dayElement.addEventListener("click", (event) => {
+			handleDayClick(dayElement, index);
+			event.preventDefault();
+            // Update the date variable with the clicked day
+            date = new Date(year, month, index + 1);
+			let dateString = date.toISOString().split('T')[0];
+            console.log(date);  // Log the new date to the console
+
+			let message;
+			tg.MainButton.setText("Date send");
+			tg.MainButton.enable();
+			tg.MainButton.show();
+			tg.sendData(dateString);
+			event.preventDefault();
         });
     });
 
@@ -621,28 +623,25 @@ let setTime = () => {
 	});
 }
 
-confirmButton.addEventListener('click', function () {
-    	// console.log("Selected dates: ", selectedDates);
+confirmButton.addEventListener('click', function (event) {
+    // console.log("Selected dates: ", selectedDates);
 	// console.log("Clicked dates: ", clickedDates);
+	event.preventDefault();
 	tg.sendData('Send data with confirm button');
-	
+	event.preventDefault();
 	let message;
 	tg.MainButton.setText("Date send");
 	tg.MainButton.enable();
 	tg.MainButton.show();
+	event.preventDefault();
 	tg.sendData("Send data with Main button");
+	event.preventDefault();
 });
 
 
 setTime();
 manipulate();
 
-
-message = "You clicked on the main button!"
-
-Telegram.WebApp.onEvent("mainButtonClicked", function(){
-	tg.sendData(message);
-});
 
 let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
