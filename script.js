@@ -5,21 +5,21 @@ let tg = window.Telegram.WebApp;
 tg.MainButton.textColor = "#FFFFFF";
 tg.MainButton.color = "#2cab37";
 
-let message = tg.initDataUnsafe.data;
-const labelmessage = document.getElementById('label-message');
-if (!message) {
-	message = tg.initData.data;
-	if (!message) {
-		message = tg.initDataUnsafe.user;
-		if (message) {
-			message = message.first_name;
-		}
-		if (!message) {
-			message = "No message";
-		}
-	}
-}
-labelmessage.value = message;
+// let message = tg.initDataUnsafe.data;
+// const labelmessage = document.getElementById('label-message');
+// if (!message) {
+// 	message = tg.initData.data;
+// 	if (!message) {
+// 		message = tg.initDataUnsafe.user;
+// 		if (message) {
+// 			message = message.first_name;
+// 		}
+// 		if (!message) {
+// 			message = "No message";
+// 		}
+// 	}
+// }
+// labelmessage.value = message;
 
 
 let date = new Date();
@@ -261,15 +261,9 @@ function manipulate() {
 
     // Attach a click event listener to each day
     days.forEach((dayElement, index) => {
-//-----------------------------------------------------------------------------------------------------------------------------------------------------------
 		dayElement.addEventListener("click", function (event) {
 			event.preventDefault();
 			handleDayClick(dayElement, index);
-            date = new Date(year, month, index + 1);
-			let dateString = date.toISOString().split('T')[0];
-			tg.sendData(dateString);
-			tg.expand();
-			alert("Data sent to Telegram bot. Web app will stay open.");
         });
     });
 
@@ -633,26 +627,28 @@ let setTime = () => {
 	});
 }
 
-const mainButton = window.Telegram.WebApp.MainButton;
-
-confirmButton.addEventListener('click', function (event) {
-    // console.log("Selected dates: ", selectedDates);
-	// console.log("Clicked dates: ", clickedDates);
-	event.preventDefault();
-	tg.sendData('Send data with confirm button');
-	event.preventDefault();
-
-
-	mainButton.setText("Date send");
-	mainButton.enable();
-	mainButton.show();	
+confirmButton.addEventListener('click', function () {
+	// selectedDates.forEach(selectedDate => {
+	// 	const date = selectedDate.date;
+	// 	const time = selectedDate.time;
+		
+	// });
+	// let dateString = date.toISOString().split('T')[0];
+	tg.sendData(JSON.stringify(selectedDates));
+	tg.expand();
 });
 
-mainButton.onClick(function(event){
-	event.preventDefault();
-	window.Telegram.WebApp.sendData("Send data with Main button");
-	event.preventDefault();
-});
+
+// const mainButton = window.Telegram.WebApp.MainButton;
+// mainButton.setText("Date send");
+// mainButton.enable();
+// mainButton.show();	
+
+// mainButton.onClick(function(event){
+// 	event.preventDefault();
+// 	window.Telegram.WebApp.sendData("Send data with Main button");
+// 	event.preventDefault();
+// });
 
 
 
