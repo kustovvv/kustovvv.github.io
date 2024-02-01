@@ -64,21 +64,11 @@ const months = [
 	"December"
 ];
 
-let selectedDates = [{date: 'Tue Jan 02 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'}, 
-					{date: 'Mon Jan 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Wed Jan 03 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-					{date: 'Thu Jan 04 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-					{date: 'Fri Jan 05 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-					{date: 'Sun Jan 07 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Mon Jan 08 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Sat Jan 13 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Mon Jan 22 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Wed Jan 24 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
-					{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-					{date: 'Fri Feb 02 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-					{date: 'Sat Feb 03 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'}];
+let selectedDates = [{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+			{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
+			{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+			{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
+];
 let clickedDates = [];
 let startDate = -1;
 let endDate;
