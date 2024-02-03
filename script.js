@@ -638,15 +638,29 @@ let setTime = () => {
 
 confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
-	// selectedDates.forEach(selectedDate => {
-	// 	const date = selectedDate.date;
-	// 	const time = selectedDate.time;
-		
-	// });
-	// let dateString = date.toISOString().split('T')[0];
-	tg.sendData(JSON.stringify(selectedDates));
-	tg.expand();
+	// tg.sendData(JSON.stringify(selectedDates));
+	// tg.expand();
+	const all_selected_dates = selectedDates;
+    const chatId = tg.initDataUnsafe.user.id;
+    sendDataToServer(all_selected_dates, chatId);
 });
+
+// Sending out data
+function sendDataToServer(dates, chatId) {
+    fetch('/process_dates', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            dates: dates, // Array of selected dates
+            chat_id: chatId // chat_id field
+        })
+    })
+    .then(response => response.json())
+    .then(data => console.log(data))
+    .catch(error => console.error('Error:', error));
+}
 
 
 // const mainButton = window.Telegram.WebApp.MainButton;
