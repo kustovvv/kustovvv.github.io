@@ -38,9 +38,11 @@ selectIndividualDays.style.backgroundColor = "#4285f4";
 const showDates = document.getElementById("show-dates-button")
 const showHours = document.getElementById("show-hours-button")
 const cancelRange = document.getElementById("cancel-range-button")
+const deleteRange = document.getElementById("delete-range-button")
 let is_show_hours = false;
 showDates.style.backgroundColor = "#4285f4";
 cancelRange.classList.add("hidden");
+deleteRange.classList.add("hidden");
 
 const timeInput = document.getElementById("ex2");
 const wholeDayOff = document.getElementById("whole-day-off-button")
@@ -65,11 +67,12 @@ const months = [
 ];
 
 let selectedDates = [{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-			{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
-			{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-			{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
+					{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
+					{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+					{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
 ];
 let clickedDates = [];
+let deleteDates = [];
 let startDate = -1;
 let endDate;
 
@@ -235,6 +238,9 @@ function manipulate() {
 		} else {
 			if (dayElement.classList.contains("clicked")) {
 				clickedDates.push(date);
+				if (dayElement.classList.contains("active") || dayElement.classList.contains("fullBlocked")) {
+					deleteDates.push(date);
+				}
 			} else {
 				// Remove the date from the selectedDates array if it's no longer active
 				clickedDates = clickedDates.filter(clickedDates => clickedDates.getTime() !== date.getTime());
@@ -243,10 +249,11 @@ function manipulate() {
 
 		if (clickedDates.length === 0) {
 			cancelRange.classList.add("hidden");
+			deleteRange.classList.add("hidden");
 		} else {
 			cancelRange.classList.remove("hidden");
+			deleteRange.classList.remove("hidden");
 		}
-
 	}
 
     // Attach a click event listener to each day
@@ -315,6 +322,19 @@ function manipulate() {
 		}
 	}
 
+	function clearAllClicked() {
+		const days = document.querySelectorAll(".calendar-dates li");
+		days.forEach(day => {
+			if (day.classList.contains("clicked")) {
+				day.classList.remove("clicked");
+				day.classList.remove("active");
+				day.classList.remove("fullBlocked");
+			}
+		});
+		cancelRange.classList.add("hidden");
+		deleteRange.classList.add("hidden");
+	}
+
 	function changeAllClickedToFullBlocked() {
 		const days = document.querySelectorAll(".calendar-dates li");
 		days.forEach(day => {
@@ -334,18 +354,6 @@ function manipulate() {
 				day.classList.remove("clicked");
 				day.classList.remove("fullBlocked");
 				day.classList.add("active");
-			}
-		});
-		cancelRange.classList.add("hidden");
-	}
-
-	function changeAllClickedToUnselected() {
-		const days = document.querySelectorAll(".calendar-dates li");
-		days.forEach(day => {
-			if (day.classList.contains("clicked")) {
-				day.classList.remove("clicked");
-				day.classList.remove("active");
-				day.classList.remove("fullBlocked");
 			}
 		});
 		cancelRange.classList.add("hidden");
@@ -384,7 +392,6 @@ function manipulate() {
 		clickedDates.forEach(date => {
 			updateAvailableTime(date, startTime, endTime);
 			removeFromClicked(date);
-			// removeFromSelected(date);
 		});
 		changeAllClickedToSelected();
 		console.log(selectedDates);
@@ -403,6 +410,17 @@ function manipulate() {
 		is_select_range = false;
 	});
 
+	deleteRange.addEventListener('click', function() {
+		clickedDates.forEach(date => {
+			removeFromSelected(date);
+			removeFromClicked(date)
+		});
+		clearAllClicked()
+		deleteRange.classList.add("hidden");
+		cancelRange.classList.add("hidden");
+		startDate = -1;
+	});
+
 	cancelRange.addEventListener('click', function() {
 		clickedDates = [];
 		const days = document.querySelectorAll(".calendar-dates li");
@@ -411,6 +429,7 @@ function manipulate() {
 				day.classList.remove("clicked");
 			}
 		});
+		deleteRange.classList.add("hidden");
 		cancelRange.classList.add("hidden");
 		startDate = -1;
 	});
@@ -618,6 +637,7 @@ let setTime = () => {
 }
 
 confirmButton.addEventListener('click', function () {
+	console.log(selectedDates);
 	// selectedDates.forEach(selectedDate => {
 	// 	const date = selectedDate.date;
 	// 	const time = selectedDate.time;
