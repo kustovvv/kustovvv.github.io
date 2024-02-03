@@ -228,6 +228,16 @@ header .calendar-current-date {
     pointer-events: none; /* To make the button not clickable when hidden */
 }
 
+#delete-range-button {
+    opacity: 1;
+    transition: opacity 0.5s ease; /* Adjust the duration and easing as needed */
+}
+
+#delete-range-button.hidden {
+    opacity: 0;
+    pointer-events: none; /* To make the button not clickable when hidden */
+}
+
 .time-error {
     border: 2px solid red;
 }
