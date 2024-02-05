@@ -623,9 +623,9 @@ confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
 	// tg.sendData(JSON.stringify(selectedDates));
 	// tg.expand();
-    var selectedDates = selectedDates; // However you get dates
+    var dates = selectedDates; // However you get dates
     var chatId = tg.initDataUnsafe.user.id; // However you get chat id
-    sendDataToServer(selectedDates, chatId);
+    sendDataToServer(dates, chatId);
 });
 
 // Sending out data
