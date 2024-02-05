@@ -624,13 +624,13 @@ confirmButton.addEventListener('click', function () {
 //    tg.sendData(JSON.stringify(selectedDates));
 //    tg.expand();
     var dates = selectedDates; // However you get dates
-    var chatId = tg.initDataUnsafe.user.id; // However you get chat id
+    var chatId = 'tg.initDataUnsafe.user.id;' // However you get chat id
     sendDataToServer(dates, chatId);
 });
 
 // Sending out data
 function sendDataToServer(dates, chatId) {
-    fetch('/process_dates', {
+    fetch('http://localhost:5000/process_dates', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
