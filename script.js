@@ -623,21 +623,21 @@ confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
 	// tg.sendData(JSON.stringify(selectedDates));
 	// tg.expand();
-	var all_selected_dates = selectedDates;
-    var chatId = tg.initDataUnsafe.user.id;
-    sendDataToServer(all_selected_dates, chatId);
+    var selectedDates = selectedDates; // However you get dates
+    var chatId = tg.initDataUnsafe.user.id; // However you get chat id
+    sendDataToServer(selectedDates, chatId);
 });
 
 // Sending out data
-function sendDataToServer(selectedDates, chatId) {
+function sendDataToServer(dates, chatId) {
     fetch('/process_dates', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            selectedDates : selectedDates ,
-            chat_id: chatId
+            dates: dates, // Array of selected dates
+            chat_id: chatId // chat_id field
         })
     })
     .then(response => response.json())
