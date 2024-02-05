@@ -640,28 +640,28 @@ confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
 	// tg.sendData(JSON.stringify(selectedDates));
 	// tg.expand();
-	const all_selected_dates = selectedDates;
-    const chatId = tg.initDataUnsafe.user.id;
+	var all_selected_dates = selectedDates;
+    // const chatId = tg.initDataUnsafe.user.id;
+	var chatId = '';
     sendDataToServer(all_selected_dates, chatId);
 });
 
 // Sending out data
-function sendDataToServer(dates, chatId) {
+function sendDataToServer(selectedDates, chatId) {
     fetch('/process_dates', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            dates: dates, // Array of selected dates
-            chat_id: chatId // chat_id field
+            selectedDates : selectedDates ,
+            chat_id: chatId
         })
     })
     .then(response => response.json())
     .then(data => console.log(data))
     .catch(error => console.error('Error:', error));
 }
-
 
 // const mainButton = window.Telegram.WebApp.MainButton;
 // mainButton.setText("Date send");
