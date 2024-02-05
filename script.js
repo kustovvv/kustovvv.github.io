@@ -623,7 +623,7 @@ confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
     // tg.sendData(JSON.stringify(selectedDates));
     // tg.expand();
-   var dates = selectedDates; // However you get dates
+   var dates = []; // However you get dates
    var chatId = tg.initDataUnsafe.user.id; // However you get chat id
    sendDataToServer(dates, chatId);
 });
