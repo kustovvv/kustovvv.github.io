@@ -638,7 +638,7 @@ let setTime = () => {
 
 confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
-	// tg.sendData(JSON.stringify(selectedDates));
+	tg.sendData(JSON.stringify(selectedDates));
 	// tg.expand();
 	var all_selected_dates = selectedDates;
     // const chatId = tg.initDataUnsafe.user.id;
