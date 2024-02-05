@@ -5,23 +5,6 @@ let tg = window.Telegram.WebApp;
 tg.MainButton.textColor = "#FFFFFF";
 tg.MainButton.color = "#2cab37";
 
-// let message = tg.initDataUnsafe.data;
-// const labelmessage = document.getElementById('label-message');
-// if (!message) {
-// 	message = tg.initData.data;
-// 	if (!message) {
-// 		message = tg.initDataUnsafe.user;
-// 		if (message) {
-// 			message = message.first_name;
-// 		}
-// 		if (!message) {
-// 			message = "No message";
-// 		}
-// 	}
-// }
-// labelmessage.value = message;
-
-
 let date = new Date();
 let year = date.getFullYear();
 let month = date.getMonth();
@@ -638,11 +621,10 @@ let setTime = () => {
 
 confirmButton.addEventListener('click', function () {
 	console.log(selectedDates);
-	tg.sendData(JSON.stringify(selectedDates));
+	// tg.sendData(JSON.stringify(selectedDates));
 	// tg.expand();
 	var all_selected_dates = selectedDates;
-    // const chatId = tg.initDataUnsafe.user.id;
-	var chatId = '';
+    var chatId = tg.initDataUnsafe.user.id;
     sendDataToServer(all_selected_dates, chatId);
 });
 
@@ -675,15 +657,12 @@ function sendDataToServer(selectedDates, chatId) {
 // });
 
 
-
 setTime();
 manipulate();
-
 
 let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
 
 // p.innerText = `${tg.initDataUnsafe.user.first_name} ${tg.initDataUnsafe.user.last_name} ${tg.initDataUnsafe.user.id}`;
-
 
 showdate.appendChild(p)
