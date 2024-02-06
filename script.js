@@ -49,7 +49,12 @@ const months = [
 	"December"
 ];
 
-let selectedDates = [];
+let selectedDates = [{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+					{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
+					{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+					{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
+];
+//let selectedDates = [];
 let clickedDates = [];
 let deleteDates = [];
 let startDate = -1;
@@ -632,7 +637,7 @@ function get_existing_unavailable_time() {
     .then(response => response.json())
     .then(data => {
     if (data.busy_times) {
-        selectedDates = data.busy_times
+//        selectedDates = data.busy_times
         console.log(data);
         }
     setTime();
