@@ -49,11 +49,7 @@ const months = [
 	"December"
 ];
 
-let selectedDates = [{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
-					{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-];
+let selectedDates = [];
 let clickedDates = [];
 let deleteDates = [];
 let startDate = -1;
@@ -81,7 +77,7 @@ function manipulate() {
 		for (let i = dayone; i > 0; i--) {
 			lit +=`<li class="inactive">${monthlastdate - i + 1}</li>`;
 		}
-
+        console.log(selectedDates)
 		// Loop to add the dates of the current month
 		for (let i = 1; i <= lastdate; i++) {
 			// Check if the current day is in selectedDates
@@ -102,7 +98,7 @@ function manipulate() {
 				return selectedDateObj.getDate() === i && 
 						selectedDateObj.getMonth() === month && 
 						selectedDateObj.getFullYear() === year && 
-						selectedDate.time === '12:00 AM-12:00 AM';
+						selectedDate.time === '12:00 AM-11:59 PM';
 			});
 
 			if (isClicked) {
@@ -138,7 +134,7 @@ function manipulate() {
 						
 			if (blockedDays.length > 0) {
 				const blockedDay = blockedDays[0];
-				if (blockedDay.time === '12:00 AM-12:00 AM') {
+				if (blockedDay.time === '12:00 AM-11:59 PM') {
 					lit += `<li class="hoursBlocked" style="color: red;">${"12:00 AM-12:00 AM"}</li>`
 				} else {
 					if (Array.isArray(blockedDay.time)) {
@@ -619,12 +615,35 @@ let setTime = () => {
 	});
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    get_existing_unavailable_time();
+});
+
+function get_existing_unavailable_time() {
+    fetch('http://localhost:5000/get_existing_unavailable_time', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            is_loading: 'loading',
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+    if (data.busy_times) {
+        selectedDates = data.busy_times
+        console.log(data);
+        }
+    setTime();
+    manipulate();
+    })
+    .catch(error => console.error("Error:", error));
+}
+
 confirmButton.addEventListener('click', function () {
-//	console.log(selectedDates);
-//    tg.sendData(JSON.stringify(selectedDates));
-//    tg.expand();
-    var dates = selectedDates;
-    var chatId = `${tg.initDataUnsafe.user.id}`;
+    var dates = selectedDates; // However you get dates
+    var chatId = 'tg.initDataUnsafe.user.id;' // However you get chat id
     sendDataToServer(dates, chatId);
 });
 
@@ -657,8 +676,6 @@ function sendDataToServer(dates, chatId) {
 // });
 
 
-setTime();
-manipulate();
 
 let showdate = document.getElementById("showdate");
 let p = document.createElement("p")
