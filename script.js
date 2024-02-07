@@ -49,12 +49,18 @@ const months = [
 	"December"
 ];
 
-let selectedDates = [{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-12:00 AM']},
-					{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-					{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-12:00 AM'},
-];
-//let selectedDates = [];
+//let selectedDates = [
+//{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+//{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
+//{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-11:59 PM']},
+//{date: 'Wed Jan 31 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '02:15 PM-05:45 PM'},
+//{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-11:59 PM'},
+//{date: 'Mon Feb 05 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['03:00 AM-05:00 AM', '05:00 AM-08:00 AM', '10:00 AM-02:15 PM', '07:00 PM-09:00 PM', '10:00 PM-12:45 AM']},
+//{date: 'Tue Feb 06 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '03:00 AM-04:00 AM'},
+//{date: 'Wed Feb 07 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'}
+//];
+
+let selectedDates = [];
 let clickedDates = [];
 let deleteDates = [];
 let startDate = -1;
@@ -637,7 +643,7 @@ function get_existing_unavailable_time() {
     .then(response => response.json())
     .then(data => {
     if (data.busy_times) {
-//        selectedDates = data.busy_times
+        selectedDates = data.busy_times
         console.log(data);
         }
     setTime();
