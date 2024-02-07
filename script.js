@@ -109,7 +109,7 @@ function manipulate() {
 				return selectedDateObj.getDate() === i && 
 						selectedDateObj.getMonth() === month && 
 						selectedDateObj.getFullYear() === year && 
-						selectedDate.time === '12:00 AM-11:59 PM';
+						['12:00 AM-11:59 PM', '12:00 AM-12:00 AM'].includes(selectedDate.time);
 			});
 
 			if (isClicked) {
@@ -145,7 +145,7 @@ function manipulate() {
 						
 			if (blockedDays.length > 0) {
 				const blockedDay = blockedDays[0];
-				if (blockedDay.time === '12:00 AM-11:59 PM') {
+				if (blockedDay.time === '12:00 AM-11:59 PM' || blockedDay.time === '12:00 AM-12:00 AM') {
 					lit += `<li class="hoursBlocked" style="color: red;">${"12:00 AM-12:00 AM"}</li>`
 				} else {
 					if (Array.isArray(blockedDay.time)) {
@@ -335,6 +335,7 @@ function manipulate() {
 			}
 		});
 		cancelRange.classList.add("hidden");
+		deleteRange.classList.add("hidden");
 	}
 
 	function changeAllClickedToSelected() {
@@ -347,6 +348,7 @@ function manipulate() {
 			}
 		});
 		cancelRange.classList.add("hidden");
+		deleteRange.classList.add("hidden");
 	}
 	
 	wholeDayOff.addEventListener('click', function () {
