@@ -641,9 +641,7 @@ function get_existing_unavailable_time() {
 confirmButton.addEventListener('click', function () {
     var dates = selectedDates; // However you get dates
     var chatId = 'tg.initDataUnsafe.user.id;' // However you get chat id
-    sendDataToServer(dates, chatId).then(() => {
-        tg.close();
-    }).catch(error => console.error('Error: ', error));
+    sendDataToServer(dates, chatId);
 });
 
 // Sending out data
@@ -659,6 +657,12 @@ function sendDataToServer(dates, chatId) {
         })
     })
     .then(response => response.json())
-    .then(data => console.log(data))
-    .catch(error => console.error('Error:', error));
+    .then(data => {
+        console.log(data));
+        tg.close();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        tg.close();
+    });
 }
