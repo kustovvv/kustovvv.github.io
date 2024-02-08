@@ -1,10 +1,5 @@
 let tg = window.Telegram.WebApp;
 
-// tg.expand()
-
-tg.MainButton.textColor = "#FFFFFF";
-tg.MainButton.color = "#2cab37";
-
 let date = new Date();
 let year = date.getFullYear();
 let month = date.getMonth();
@@ -48,17 +43,6 @@ const months = [
 	"November",
 	"December"
 ];
-
-//let selectedDates = [
-//{date: 'Fri Dec 29 2023 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-//{date: 'Tue Jan 16 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'},
-//{date: 'Thu Jan 18 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['12:00 AM-04:10 AM', '07:50 PM-11:59 PM']},
-//{date: 'Wed Jan 31 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '02:15 PM-05:45 PM'},
-//{date: 'Thu Feb 01 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '12:00 AM-11:59 PM'},
-//{date: 'Mon Feb 05 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: ['03:00 AM-05:00 AM', '05:00 AM-08:00 AM', '10:00 AM-02:15 PM', '07:00 PM-09:00 PM', '10:00 PM-12:45 AM']},
-//{date: 'Tue Feb 06 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '03:00 AM-04:00 AM'},
-//{date: 'Wed Feb 07 2024 00:00:00 GMT+0200 (Eastern European Standard Time)', time: '04:10 AM-07:50 PM'}
-//];
 
 let selectedDates = [];
 let clickedDates = [];
@@ -657,7 +641,9 @@ function get_existing_unavailable_time() {
 confirmButton.addEventListener('click', function () {
     var dates = selectedDates; // However you get dates
     var chatId = 'tg.initDataUnsafe.user.id;' // However you get chat id
-    sendDataToServer(dates, chatId);
+    sendDataToServer(dates, chatId).then(() => {
+        tg.close();
+    }).catch(error => console.error('Error: ', error));
 });
 
 // Sending out data
@@ -676,23 +662,3 @@ function sendDataToServer(dates, chatId) {
     .then(data => console.log(data))
     .catch(error => console.error('Error:', error));
 }
-
-// const mainButton = window.Telegram.WebApp.MainButton;
-// mainButton.setText("Date send");
-// mainButton.enable();
-// mainButton.show();	
-
-// mainButton.onClick(function(event){
-// 	event.preventDefault();
-// 	window.Telegram.WebApp.sendData("Send data with Main button");
-// 	event.preventDefault();
-// });
-
-
-
-let showdate = document.getElementById("showdate");
-let p = document.createElement("p")
-
-// p.innerText = `${tg.initDataUnsafe.user.first_name} ${tg.initDataUnsafe.user.last_name} ${tg.initDataUnsafe.user.id}`;
-
-showdate.appendChild(p)
