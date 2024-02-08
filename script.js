@@ -658,7 +658,7 @@ function sendDataToServer(dates, chatId) {
     })
     .then(response => response.json())
     .then(data => {
-        console.log(data));
+        console.log(data);
         tg.close();
     })
     .catch(error => {
