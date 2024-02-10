@@ -50,101 +50,115 @@ let deleteDates = [];
 let startDate = -1;
 let endDate;
 
+function isActiveDay(i, month, year) {
+    let isActive = selectedDates.some(selectedDate => {
+        const selectedDateObj = new Date(selectedDate.date);
+        return selectedDateObj.getDate() === i &&
+                selectedDateObj.getMonth() === month &&
+                selectedDateObj.getFullYear() === year;
+    });
+    return isActive;
+}
+
+function isClickedDay(i, month, year) {
+    let isClicked = clickedDates.some(clickedDates =>
+        clickedDates.getDate() === i &&
+        clickedDates.getMonth() === month &&
+        clickedDates.getFullYear() === year);
+    return isClicked;
+}
+
+function blockedDay(i, month, year) {
+    let blockedDays = selectedDates.filter(selectedDate => {
+        const selectedDateObj = new Date(selectedDate.date);
+        return selectedDateObj.getDate() == i &&
+                selectedDateObj.getMonth() == month &&
+                selectedDateObj.getFullYear() == year;
+    });
+    return blockedDays;
+}
+
+function isFullBlockedDay(i, month, year) {
+    let isFullBlocked = selectedDates.some(selectedDate => {
+        const selectedDateObj = new Date(selectedDate.date);
+        return selectedDateObj.getDate() === i &&
+                selectedDateObj.getMonth() === month &&
+                selectedDateObj.getFullYear() === year &&
+                ['12:00 AM-11:59 PM', '12:00 AM-12:00 AM'].includes(selectedDate.time);
+    });
+    return isFullBlocked;
+}
 
 function displayUnavailableDays(dayone, lastdate, dayend, monthlastdate, lit) {
-    let newlit = "";
-    newlit = lit;
     // Loop to add the last dates of the previous month
     for (let i = dayone; i > 0; i--) {
-        newlit +=`<li class="inactive">${monthlastdate - i + 1}</li>`;
+        lit +=`<li class="inactive">${monthlastdate - i + 1}</li>`;
     }
-    console.log(selectedDates)
     // Loop to add the dates of the current month
     for (let i = 1; i <= lastdate; i++) {
         // Check if the current day is in selectedDates
-        let isActive = selectedDates.some(selectedDate => {
-            const selectedDateObj = new Date(selectedDate.date);
-            return selectedDateObj.getDate() === i &&
-                    selectedDateObj.getMonth() === month &&
-                    selectedDateObj.getFullYear() === year;
-        });
-
-        let isClicked = clickedDates.some(clickedDates =>
-                                        clickedDates.getDate() === i &&
-                                        clickedDates.getMonth() === month &&
-                                        clickedDates.getFullYear() === year);
-
-        let isFullBlocked = selectedDates.some(selectedDate => {
-            const selectedDateObj = new Date(selectedDate.date);
-            return selectedDateObj.getDate() === i &&
-                    selectedDateObj.getMonth() === month &&
-                    selectedDateObj.getFullYear() === year &&
-                    ['12:00 AM-11:59 PM', '12:00 AM-12:00 AM'].includes(selectedDate.time);
-        });
+        let isActive = isActiveDay(i, month, year);
+        // Check if the current day is in clickedDates
+        let isClicked = isClickedDay(i, month, year);
+        // Check if the current day has '12:00 AM-12:00 AM' time range
+        let isFullBlocked = isFullBlockedDay(i, month, year);
 
         if (isClicked) {
-            newlit += `<li class="clicked">${i}</li>`;
+            lit += `<li class="clicked">${i}</li>`;
         } else if (isFullBlocked) {
-            newlit += `<li class="fullBlocked">${i}</li>`;
+            lit += `<li class="fullBlocked">${i}</li>`;
         } else if (isActive) {
-            newlit += `<li class="active">${i}</li>`;
+            lit += `<li class="active">${i}</li>`;
         }else {
-            newlit += `<li class="">${i}</li>`;
+            lit += `<li class="">${i}</li>`;
         }
     }
 
     // Loop to add the first dates of the next month
     for (let i = dayend; i < 6; i++) {
-        newlit += `<li class="inactive">${i - dayend + 1}</li>`
+        lit += `<li class="inactive">${i - dayend + 1}</li>`
     }
 
-    return newlit;
+    return lit;
 }
 
 function displayUnavailableHours(dayone, lastdate, dayend, monthlastdate, lit) {
-    let newlit = "";
-    newlit = lit;
     // Loop to add the last dates of the previous month
     for (let i = dayone; i > 0; i--) {
-        newlit +=`<li class="inactive">${monthlastdate - i + 1}</li>`;
+        lit +=`<li class="inactive">${monthlastdate - i + 1}</li>`;
     }
 
     // Loop to add the dates of the current month
     for (let i = 1; i <= lastdate; i++) {
         // Check if the current day is in selectedDates
-        let blockedDays = selectedDates.filter(selectedDate => {
-            const selectedDateObj = new Date(selectedDate.date);
-            return selectedDateObj.getDate() == i &&
-                    selectedDateObj.getMonth() == month &&
-                    selectedDateObj.getFullYear() == year;
-        });
+        let blockedDays = blockedDay(i, month, year);
 
         if (blockedDays.length > 0) {
             const blockedDay = blockedDays[0];
             if (blockedDay.time === '12:00 AM-11:59 PM' || blockedDay.time === '12:00 AM-12:00 AM') {
-                newlit += `<li class="hoursBlocked" style="color: red;">${"12:00 AM-12:00 AM"}</li>`
+                lit += `<li class="hoursBlocked" style="color: red;">${"12:00 AM-12:00 AM"}</li>`
             } else {
                 if (Array.isArray(blockedDay.time)) {
-                    newlit += `<li class="hoursBlocked" style="margin-top: 0px;">`;
+                    lit += `<li class="hoursBlocked" style="margin-top: 0px;">`;
                     for (let i = 0; i < blockedDay.time.length; i++) {
-                        newlit += `${blockedDay.time[i]} `;
+                        lit += `${blockedDay.time[i]} `;
                     }
-                    newlit += `</li>`;
+                    lit += `</li>`;
                 } else {
-                    newlit += `<li class="hoursBlocked">${blockedDay.time}</li>`;
+                    lit += `<li class="hoursBlocked">${blockedDay.time}</li>`;
                 }
             }
         } else {
-            newlit += `<li class="">${i}</li>`;
+            lit += `<li class="">${i}</li>`;
         }
     }
 
     // Loop to add the first dates of the next month
     for (let i = dayend; i < 6; i++) {
-        newlit += `<li class="inactive">${i - dayend + 1}</li>`
+        lit += `<li class="inactive">${i - dayend + 1}</li>`
     }
 
-    return newlit;
+    return lit;
 }
 
 
@@ -268,59 +282,60 @@ function updateUnavailableTime(dateToUpdate, newFrom, newTo) {
     }
 }
 
+
 function updateAvailableTime(dateToUpdate, newFrom, newTo) {
     const indexToUpdate = getDateIndexToUpdate(dateToUpdate);
+
+    let startTime = newFrom === '12:00 AM' ? '' : `12:00 AM-${newFrom}`;
+    let endTime = newTo === '12:00 AM' ? '' : `${newTo}-12:00 AM`;
+    let time = '';
+    if (startTime && endTime) {
+        time = [startTime, endTime];
+    } else if (startTime) {
+        time = startTime;
+    } else if (endTime) {
+        time = endTime;
+    }
+
     if (indexToUpdate !== -1) {
         // Update the 'from-to' value for the matching date
         selectedDates[indexToUpdate].date = `${dateToUpdate}`;
-        selectedDates[indexToUpdate].time = [`${'12:00 AM'}-${newFrom}`, `${newTo}-${'12:00 AM'}`];
+        selectedDates[indexToUpdate].time = time;
     } else {
         // Handle the case where the date is not found
         let dateObj = {
             date: `${dateToUpdate}`,
-            time:  [`${'12:00 AM'}-${newFrom}`, `${newTo}-${'12:00 AM'}`]
+            time:  time
         };
         selectedDates.push(dateObj);
     }
 }
 
-function clearAllClicked() {
+function clearSelectBlockedAllClicked(flag) {
     const days = document.querySelectorAll(".calendar-dates li");
     days.forEach(day => {
         if (day.classList.contains("clicked")) {
             day.classList.remove("clicked");
             day.classList.remove("active");
             day.classList.remove("fullBlocked");
+            if (flag === 'blocked') {
+                day.classList.add("fullBlocked");
+            } else if (flag === "active"){
+                day.classList.add("active");
+            }
         }
     });
     cancelRange.classList.add("hidden");
     deleteRange.classList.add("hidden");
+    manipulate();
 }
 
 function changeAllClickedToFullBlocked() {
-    const days = document.querySelectorAll(".calendar-dates li");
-    days.forEach(day => {
-        if (day.classList.contains("clicked")) {
-            day.classList.remove("clicked");
-            day.classList.remove("active");
-            day.classList.add("fullBlocked");
-        }
-    });
-    cancelRange.classList.add("hidden");
-    deleteRange.classList.add("hidden");
+    clearSelectBlockedAllClicked('blocked');
 }
 
 function changeAllClickedToSelected() {
-    const days = document.querySelectorAll(".calendar-dates li");
-    days.forEach(day => {
-        if (day.classList.contains("clicked")) {
-            day.classList.remove("clicked");
-            day.classList.remove("fullBlocked");
-            day.classList.add("active");
-        }
-    });
-    cancelRange.classList.add("hidden");
-    deleteRange.classList.add("hidden");
+    clearSelectBlockedAllClicked('active');
 }
 
 wholeDayOff.addEventListener('click', function () {
@@ -354,7 +369,11 @@ inOffice.addEventListener('click', function () {
     startTime = document.getElementById("startTime").value;
     endTime = document.getElementById("endTime").value;
     clickedDates.forEach(date => {
-        updateAvailableTime(date, startTime, endTime);
+        if (startTime === '12:00 AM' && endTime === '12:00 AM') {
+            removeFromSelected(date);
+        } else {
+            updateAvailableTime(date, startTime, endTime);
+        }
         removeFromClicked(date);
     });
     changeAllClickedToSelected();
@@ -423,7 +442,7 @@ deleteRange.addEventListener('click', function() {
         removeFromSelected(date);
         removeFromClicked(date)
     });
-    clearAllClicked()
+    clearSelectBlockedAllClicked()
     resetUI();
 });
 
@@ -436,6 +455,7 @@ cancelRange.addEventListener('click', function() {
         }
     });
     resetUI();
+    manipulate();
 });
 
 showDates.addEventListener('click', function() {
