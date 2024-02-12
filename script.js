@@ -670,8 +670,8 @@ function get_existing_unavailable_time() {
 }
 
 confirmButton.addEventListener('click', function () {
-    var dates = selectedDates; // However you get dates
-    var chatId = 'tg.initDataUnsafe.user.id;' // However you get chat id
+    var dates = selectedDates;
+    var chatId = tg.initDataUnsafe.user.id;
     sendDataToServer(dates, chatId);
 });
 
