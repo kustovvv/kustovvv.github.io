@@ -654,7 +654,7 @@ function get_existing_unavailable_time() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            chat_id: 'tg.initDataUnsafe.user.id;',
+            chat_id: tg.initDataUnsafe.user.id
         })
     })
     .then(response => response.json())
