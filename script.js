@@ -811,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function get_existing_unavailable_time() {
-    fetch('/get_existing_unavailable_time', {
+    fetch('http://localhost:5000/get_existing_unavailable_time', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -840,7 +840,7 @@ confirmButton.addEventListener('click', function () {
 
 // Sending out data
 function sendDataToServer(dates, chatId) {
-    fetch('/process_dates', {
+    fetch('http://localhost:5000/process_dates', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
