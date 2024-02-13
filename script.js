@@ -50,6 +50,17 @@ let deleteDates = [];
 let startDate = -1;
 let endDate;
 
+
+/**
+ * Checks if a given day is marked as active based on a list of selected dates.
+ *
+ * @param {number} i - The day of the month to check.
+ * @param {number} month - The zero-based index of the month to check (0 for January, 11 for December).
+ * @param {number} year - The year to check.
+ * @returns {boolean} - True if the specified day is active (i.e., matches a date in `selectedDates`), false otherwise.
+ *
+ * Note: This function uses the global variable `selectedDates`
+ */
 function isActiveDay(i, month, year) {
     let isActive = selectedDates.some(selectedDate => {
         const selectedDateObj = new Date(selectedDate.date);
@@ -60,6 +71,17 @@ function isActiveDay(i, month, year) {
     return isActive;
 }
 
+
+/**
+ * Checks if a given day is marked as clicked based on a list of clicked dates.
+ *
+ * @param {number} i - The day of the month to check.
+ * @param {number} month - The zero-based index of the month to check (0 for January, 11 for December).
+ * @param {number} year - The year to check.
+ * @returns {boolean} - True if the specified day is clicked (i.e., matches a date in `clickedDates`), false otherwise.
+ *
+ * Note: This function uses the global variable `clickedDates`
+ */
 function isClickedDay(i, month, year) {
     let isClicked = clickedDates.some(clickedDates =>
         clickedDates.getDate() === i &&
@@ -68,6 +90,17 @@ function isClickedDay(i, month, year) {
     return isClicked;
 }
 
+
+/**
+ * Filters out and returns all dates marked as blocked for a specified day, month, and year.
+ *
+ * @param {number} i - The day of the month to check.
+ * @param {number} month - The zero-based index of the month to check (0 for January, 11 for December).
+ * @param {number} year - The year to check.
+ * @returns {Array} - An array of dates (single Date object) that are blocked for the specified day, month, and year.
+ *
+ * Note: This function uses the global variable `selectedDates`
+ */
 function blockedDay(i, month, year) {
     let blockedDays = selectedDates.filter(selectedDate => {
         const selectedDateObj = new Date(selectedDate.date);
@@ -78,6 +111,17 @@ function blockedDay(i, month, year) {
     return blockedDays;
 }
 
+
+/**
+ * Determines if a specified day is fully blocked based on time ranges associated with each selected date.
+ *
+ * @param {number} i - The day of the month to check.
+ * @param {number} month - The zero-based index of the month to check (0 for January, 11 for December).
+ * @param {number} year - The year to check.
+ * @returns {boolean} - True if the specified day is fully blocked, false otherwise.
+ *
+ * Note: This function uses the global variable `selectedDates`
+ */
 function isFullBlockedDay(i, month, year) {
     let isFullBlocked = selectedDates.some(selectedDate => {
         const selectedDateObj = new Date(selectedDate.date);
@@ -88,6 +132,19 @@ function isFullBlockedDay(i, month, year) {
     });
     return isFullBlocked;
 }
+
+
+/**
+ * Generates HTML list items (`<li>`) representing days in a calendar view, marking fully unavailable, clicked, blocked,
+ * and inactive days.
+ *
+ * @param {number} dayone - The weekday of the first day of the current month (0 for Sunday, 6 for Saturday).
+ * @param {number} lastdate - The number of days in the current month.
+ * @param {number} dayend - The weekday of the last day of the current month.
+ * @param {number} monthlastdate - The last date of the previous month.
+ * @param {string} lit - Initial HTML string to which the function appends `<li>` elements.
+ * @returns {string} - The updated HTML string including `<li>` elements for each day in the calendar view.
+ */
 
 function displayUnavailableDays(dayone, lastdate, dayend, monthlastdate, lit) {
     // Loop to add the last dates of the previous month
@@ -122,6 +179,23 @@ function displayUnavailableDays(dayone, lastdate, dayend, monthlastdate, lit) {
     return lit;
 }
 
+
+/**
+ * Generates HTML list items (`<li>`) for a calendar, marking days with unavailable hours based on blocked time ranges.
+ *
+ * This function extends the concept of displaying days on a calendar to include marking specific hours as unavailable.
+ * It loops through each day of the current month, checks against a list of blocked days (`blockedDay` function), and
+ * appends `<li>` elements with special classes or styles to indicate the status of each day's hours. Days with fully
+ * blocked hours are marked distinctly, and days with specific unavailable hours are listed with their blocked time ranges.
+ *
+ * @param {number} dayone - The weekday of the first day of the current month (0 for Sunday, 6 for Saturday).
+ * @param {number} lastdate - The number of days in the current month.
+ * @param {number} dayend - The weekday of the last day of the current month.
+ * @param {number} monthlastdate - The last date of the previous month.
+ * @param {string} lit - Initial HTML string to which the function appends `<li>` elements.
+ * @returns {string} - The updated HTML string including `<li>` elements for each day in the calendar view, with special
+ * markings for blocked hours.
+ */
 function displayUnavailableHours(dayone, lastdate, dayend, monthlastdate, lit) {
     // Loop to add the last dates of the previous month
     for (let i = dayone; i > 0; i--) {
@@ -162,8 +236,25 @@ function displayUnavailableHours(dayone, lastdate, dayend, monthlastdate, lit) {
 }
 
 
+/**
+ * Selects or deselects a range of dates between two clicks in a calendar UI, highlighting or unhighlighting them.
+ *
+ * This function allows users to select a range of dates in a calendar by clicking on two different days. The first click
+ * marks the start of the selection, and the second click marks the end. All dates in between are then highlighted as selected.
+ * If a selected day is clicked again, it and any associated range are deselected.
+ *
+ * @param {HTMLElement} dayElement - The day element that was clicked.
+ * @param {number} dayone - The weekday of the first day of the current month (0 for Sunday, 6 for Saturday).
+ * @param {number} lastdate - The number of days in the current month.
+ * @param {number} dayend - The weekday of the last day of the current month.
+ * @param {number} monthlastdate - The last date of the previous month.
+ *
+ * Note: This function uses the global variables `startDate`, `endDate`, and `clickedDates` to track the start date,
+ * end date, and array of all selected dates, respectively.
+ */
 function selectDateRange(dayElement, dayone, lastdate, dayend, monthlastdate) {
     if (dayElement.classList.contains("clicked")) {
+        // Initialize or update the start date
         startDate = startDate === -1 ? date : startDate;
         endDate = date;
         if (startDate > endDate) {
@@ -173,12 +264,14 @@ function selectDateRange(dayElement, dayone, lastdate, dayend, monthlastdate) {
         }
         const daysToAdd = Math.abs((endDate - startDate) / (24 * 60 * 60 * 1000));
 
+        // Add the range of dates to clickedDates
         for (let i = 0; i <= daysToAdd; i++) {
             const currentDate = new Date(startDate);
             currentDate.setDate(startDate.getDate() + i);
             clickedDates.push(currentDate);
         }
 
+        // Highlight the range in the UI
         clickedDates.forEach(clickedDate => {
             const dayIndex = clickedDate.getDate() + dayone - 1;
             if (clickedDate.getMonth() === month && clickedDate.getFullYear() === year) {
@@ -187,6 +280,7 @@ function selectDateRange(dayElement, dayone, lastdate, dayend, monthlastdate) {
             }
         });
 
+        // Reset start date after selecting a range
         if (startDate !== endDate) {
             startDate = -1;
         }
@@ -199,8 +293,26 @@ function selectDateRange(dayElement, dayone, lastdate, dayend, monthlastdate) {
 }
 
 
+/**
+ * Toggles the selection state of individual days in a calendar UI, adding or removing them from a tracking array.
+ *
+ * This function is designed to manage user interactions with a calendar UI, where clicking a day element toggles its
+ * selected state. Selected days are added to a global `clickedDates` array, and if a selected day is marked with
+ * special classes ('active' or 'fullBlocked'), it is also added to a `deleteDates` array for further processing.
+ * Conversely, if a day is deselected, it is removed from the `clickedDates` array. This allows for complex interactions
+ * such as marking days as active, inactive, or blocked, and handling their selection status accordingly.
+ *
+ * @param {HTMLElement} dayElement - The day element that was clicked, assumed to contain the date in a `data-date` attribute.
+ * @param {number} dayone - The weekday of the first day of the current month (0 for Sunday, 6 for Saturday), not used here.
+ * @param {number} lastdate - The number of days in the current month, not used here.
+ * @param {number} dayend - The weekday of the last day of the current month, not used here.
+ * @param {number} monthlastdate - The last date of the previous month, not used here.
+ *
+ * Note: This function uses the global variables `date`, `clickedDates` and `deleteDates`
+ */
 function selectDaysIndividual(dayElement, dayone, lastdate, dayend, monthlastdate) {
     if (dayElement.classList.contains("clicked")) {
+        // Add the date to clickedDates array if not already selected
         clickedDates.push(date);
         if (dayElement.classList.contains("active") || dayElement.classList.contains("fullBlocked")) {
             deleteDates.push(date);
@@ -212,6 +324,25 @@ function selectDaysIndividual(dayElement, dayone, lastdate, dayend, monthlastdat
 }
 
 
+/**
+ * Returns a function that handles click events on day elements within a calendar UI, toggling their selection
+ * state and managing date ranges or individual selections.
+ *
+ * This function generates a click event handler tailored for day elements in a calendar. It manages toggling
+ * the selection state of days, supporting both range selections and individual day selections based on global flags.
+ * The function updates global tracking variables and UI elements to reflect the current selection state.
+ *
+ * @param {number} dayone - The weekday of the first day of the current month (0 for Sunday, 6 for Saturday).
+ * @param {number} lastdate - The number of days in the current month.
+ * @param {number} dayend - The weekday of the last day of the current month.
+ * @param {number} monthlastdate - The last date of the previous month.
+ * @param {string} lit - Initial HTML string, not directly used in the click handler but required for consistency
+ * with the function signature.
+ * @returns {Function} - A function that handles click events on day elements, accepting the clicked `dayElement` and
+ * its `index` within the month.
+ *
+ * Note: This function uses the global variables `date`, `cancelRange` and `deleteRange`
+ */
 function handleDaysClick(dayone, lastdate, dayend, monthlastdate, lit) {
     const handleDayClick = (dayElement, index) => {
 		// Update the date variable with the clicked day
@@ -228,6 +359,7 @@ function handleDaysClick(dayone, lastdate, dayend, monthlastdate, lit) {
 			selectDaysIndividual(dayElement, dayone, lastdate, dayend, monthlastdate);
 		}
 
+        // Update UI controls based on the current selection
 		if (clickedDates.length === 0) {
 			cancelRange.classList.add("hidden");
 			deleteRange.classList.add("hidden");
@@ -240,10 +372,26 @@ function handleDaysClick(dayone, lastdate, dayend, monthlastdate, lit) {
 	return handleDayClick
 }
 
+
+/**
+ * Removes a specific date from the global array of clicked dates.
+ *
+ * @param {Date} date - The date to be removed from the `clickedDates` array.
+ *
+ * Note: This function uses the global variables `clickedDates`
+ */
 function removeFromClicked(date) {
     clickedDates = clickedDates.filter(clickedDates => clickedDates.getTime() !== date.getTime());
 }
 
+
+/**
+ * Removes a specific date from the global array of selected dates.
+ *
+ * @param {Date} dateToRemove - The date to be removed from the `selectedDates` array.
+ *
+ * Note: This function uses the global variables `selectedDates`
+ */
 function removeFromSelected(dateToRemove) {
     selectedDates = selectedDates.filter(selectedDate => {
         const selectedDateObj = new Date(selectedDate.date);
@@ -253,6 +401,21 @@ function removeFromSelected(dateToRemove) {
     });
 }
 
+
+/**
+ * Finds the index of a specific date in the global array of selected dates that matches the given date to update.
+ *
+ * This function searches through the `selectedDates` array for an entry that matches the provided `dateToUpdate` parameter
+ * based on the date's time, month, and year. It is designed to identify the exact position of a date within the array,
+ * facilitating updates to specific entries (e.g., changing the status of a date from active to inactive or vice versa).
+ *
+ * @param {Date} dateToUpdate - The date for which the index needs to be found in the `selectedDates` array.
+ * @returns {number} - The index of the matching date entry in the `selectedDates` array. Returns -1 if no match is found.
+ *
+ * Note: The `selectedDates` array is assumed to be a globally accessible variable containing objects with a `date` property.
+ * Each `date` property should be a string or timestamp that can be converted into a Date object for comparison. This function
+ * is particularly useful for applications that require precise manipulation of individual dates within a larger set of selected dates.
+ */
 function getDateIndexToUpdate(dateToUpdate) {
     // Get an index of the date we want to update
     const indexToUpdate = selectedDates.findIndex(entry => {
@@ -648,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function get_existing_unavailable_time() {
-    fetch('http://localhost:5000/get_existing_unavailable_time', {
+    fetch('/get_existing_unavailable_time', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -677,7 +840,7 @@ confirmButton.addEventListener('click', function () {
 
 // Sending out data
 function sendDataToServer(dates, chatId) {
-    fetch('http://localhost:5000/process_dates', {
+    fetch('/process_dates', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
