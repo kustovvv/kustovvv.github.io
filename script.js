@@ -687,7 +687,7 @@ deleteRange.addEventListener('click', function() {
         removeFromSelected(date);
         removeFromClicked(date)
     });
-    clearSelectBlockedAllClicked()
+    changeAllClickedToActiveOrFullBlocked()
     resetUI();
 });
 
