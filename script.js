@@ -378,7 +378,7 @@ function handleDaysClick(dayone, lastdate, dayend, monthlastdate, lit) {
  *
  * @param {Date} date - The date to be removed from the `clickedDates` array.
  *
- * Note: This function uses the global variables `clickedDates`
+ * Note: This function uses the global variable `clickedDates`
  */
 function removeFromClicked(date) {
     clickedDates = clickedDates.filter(clickedDates => clickedDates.getTime() !== date.getTime());
@@ -390,7 +390,7 @@ function removeFromClicked(date) {
  *
  * @param {Date} dateToRemove - The date to be removed from the `selectedDates` array.
  *
- * Note: This function uses the global variables `selectedDates`
+ * Note: This function uses the global variable `selectedDates`
  */
 function removeFromSelected(dateToRemove) {
     selectedDates = selectedDates.filter(selectedDate => {
@@ -403,18 +403,12 @@ function removeFromSelected(dateToRemove) {
 
 
 /**
- * Finds the index of a specific date in the global array of selected dates that matches the given date to update.
- *
- * This function searches through the `selectedDates` array for an entry that matches the provided `dateToUpdate` parameter
- * based on the date's time, month, and year. It is designed to identify the exact position of a date within the array,
- * facilitating updates to specific entries (e.g., changing the status of a date from active to inactive or vice versa).
+ * Finds the index of a specific date in the array of selected dates that matches the given date to update.
  *
  * @param {Date} dateToUpdate - The date for which the index needs to be found in the `selectedDates` array.
  * @returns {number} - The index of the matching date entry in the `selectedDates` array. Returns -1 if no match is found.
  *
- * Note: The `selectedDates` array is assumed to be a globally accessible variable containing objects with a `date` property.
- * Each `date` property should be a string or timestamp that can be converted into a Date object for comparison. This function
- * is particularly useful for applications that require precise manipulation of individual dates within a larger set of selected dates.
+ * Note: This function uses the global variable `selectedDates`
  */
 function getDateIndexToUpdate(dateToUpdate) {
     // Get an index of the date we want to update
@@ -429,6 +423,16 @@ function getDateIndexToUpdate(dateToUpdate) {
     return indexToUpdate;
 }
 
+
+/**
+ * Updates or adds the unavailable time range for a specific date in the `selectedDates` array.
+ *
+ * @param {Date} dateToUpdate - The date for which the unavailable time range needs to be updated or added.
+ * @param {string} newFrom - The start of the new unavailable time range.
+ * @param {string} newTo - The end of the new unavailable time range.
+ *
+ * Note: This function uses the global variable `selectedDates`
+ */
 function updateUnavailableTime(dateToUpdate, newFrom, newTo) {
     const indexToUpdate = getDateIndexToUpdate(dateToUpdate);
     if (indexToUpdate !== -1) {
@@ -446,26 +450,34 @@ function updateUnavailableTime(dateToUpdate, newFrom, newTo) {
 }
 
 
+/**
+ * Updates or adds available time ranges for a specific date within the `selectedDates` array.
+ *
+ * @param {Date} dateToUpdate - The date for which the available time range needs to be updated or added.
+ * @param {string} newFrom - The start time of the new availability period.
+ * @param {string} newTo - The end time of the new availability period.
+ *
+ * Note: This function uses the global variable `selectedDates`
+ */
 function updateAvailableTime(dateToUpdate, newFrom, newTo) {
     const indexToUpdate = getDateIndexToUpdate(dateToUpdate);
 
     let startTime = newFrom === '12:00 AM' ? '' : `12:00 AM-${newFrom}`;
     let endTime = newTo === '12:00 AM' ? '' : `${newTo}-12:00 AM`;
     let time = '';
+    // Construct the time string based on the availability of start and end times
     if (startTime && endTime) {
         time = [startTime, endTime];
-    } else if (startTime) {
-        time = startTime;
-    } else if (endTime) {
-        time = endTime;
+    } else {
+        time = startTime || endTime;
     }
 
     if (indexToUpdate !== -1) {
-        // Update the 'from-to' value for the matching date
+        // Existing date found, update its time range
         selectedDates[indexToUpdate].date = `${dateToUpdate}`;
         selectedDates[indexToUpdate].time = time;
     } else {
-        // Handle the case where the date is not found
+        // Date not found, add a new entry
         let dateObj = {
             date: `${dateToUpdate}`,
             time:  time
@@ -474,7 +486,20 @@ function updateAvailableTime(dateToUpdate, newFrom, newTo) {
     }
 }
 
-function clearSelectBlockedAllClicked(flag) {
+
+/**
+ * Clears the selection from all clicked days in the calendar and optionally marks them as blocked or active based on a flag.
+ *
+ * This function iterates through all day elements in the calendar, identified by ".calendar-dates li", and removes the "clicked",
+ * "active", and "fullBlocked" classes from each. Depending on the provided flag, it can then add either "fullBlocked" or "active"
+ * to denote the new status of the days.
+ *
+ * @param {string} flag - Determines the new class to add to each day element after clearing "clicked". Expected values
+ * are 'blocked' or 'active'.
+ *
+ * Note: This function directly manipulates the DOM.
+ */
+function changeAllClickedToActiveOrFullBlocked(flag) {
     const days = document.querySelectorAll(".calendar-dates li");
     days.forEach(day => {
         if (day.classList.contains("clicked")) {
@@ -493,14 +518,16 @@ function clearSelectBlockedAllClicked(flag) {
     manipulate();
 }
 
-function changeAllClickedToFullBlocked() {
-    clearSelectBlockedAllClicked('blocked');
-}
 
-function changeAllClickedToSelected() {
-    clearSelectBlockedAllClicked('active');
-}
-
+/**
+ * Adds an event listener for the 'click' event on the 'wholeDayOff' element. When clicked, it sets the slider to span
+ * the entire day, updates the start and end times based on user input, and processes each date in the `clickedDates`
+ * array to update their unavailable time slots and remove them from the clicked list. Finally, it changes all clicked
+ * dates' status to fully blocked.
+ *
+ * Note: This function relies on jQuery to set the slider value and manipulate DOM elements. It also uses global
+ * variables `clickedDates`, `startTime`, `endTime`, and `selectedDates`.
+ */
 wholeDayOff.addEventListener('click', function () {
     $("#ex2").slider('setValue', [0, 1440]);
     startTime = document.getElementById("startTime").value;
@@ -509,10 +536,19 @@ wholeDayOff.addEventListener('click', function () {
         updateUnavailableTime(date, startTime, endTime);
         removeFromClicked(date);
     });
-    changeAllClickedToFullBlocked();
+    changeAllClickedToActiveOrFullBlocked('blocked');
     console.log(selectedDates);
 });
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'outOfOffice' element. When clicked, it updates the start and end
+ * times based on user input, processes each date in the `clickedDates` array to update their unavailable time slots,
+ * and removes them from the clicked list. It then sets the status of the dates in the `clickedDates` array to either
+ * fully blocked or selected, based on the start and end times.
+ *
+ * Note: This function uses global variables `clickedDates`, `startTime` and `endTime`.
+ */
 outOfOffice.addEventListener('click', function () {
     startTime = document.getElementById("startTime").value;
     endTime = document.getElementById("endTime").value;
@@ -521,13 +557,24 @@ outOfOffice.addEventListener('click', function () {
         removeFromClicked(date);
     });
     if (startTime === '12:00 AM' && endTime === '12:00 AM') {
-        changeAllClickedToFullBlocked();
+        changeAllClickedToActiveOrFullBlocked('blocked');
     } else {
-        changeAllClickedToSelected();
+        changeAllClickedToActiveOrFullBlocked('active');
     }
     console.log(selectedDates);
 });
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'inOffice' element. When clicked, it updates the start and end
+ * times based on user input and processes each date in the `clickedDates` array. For each date, it either removes the
+ * date from the selected list if the start and end times are both '12:00 AM', or adds the unavailable times for
+ * the date from '12:00 AM' to startTime and from endTime to '12:00 AM'. It then removes the date from the clicked list.
+ * Afterwards, it changes the status of all processed dates in the `clickedDates` array to 'active' or keeps them as
+ * 'fullBlocked', based on their updated states.
+ *
+ * Note: This function uses global variables `clickedDates`, `startTime`, `endTime`.
+ */
 inOffice.addEventListener('click', function () {
     startTime = document.getElementById("startTime").value;
     endTime = document.getElementById("endTime").value;
@@ -539,12 +586,18 @@ inOffice.addEventListener('click', function () {
         }
         removeFromClicked(date);
     });
-    changeAllClickedToSelected();
+    changeAllClickedToActiveOrFullBlocked('active');
     console.log(selectedDates);
 });
 
 
-// Function to generate the calendar
+/**
+ * Generates and displays a calendar for the specified month and year, either showing unavailable days or hours based on
+ * the `is_show_hours` flag. It also sets up click event listeners for each day in the calendar, allowing for specific
+ * interactions when a day is clicked.
+ *
+ * Note: This function uses global variables `year`, `month`, `is_show_hours`.
+ */
 function manipulate() {
 	// Get the first day of the month
 	let dayone = new Date(year, month, 1).getDay();
@@ -581,6 +634,14 @@ function manipulate() {
     });
 }
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'selectRange' element. When clicked, this function changes the
+ * background color of selectIndividualDays and selectRange buttons and also sets the flag `is_select_range` to true.
+ * Resets the start date selection.
+ *
+ * Note: This function uses global variables `selectIndividualDays`, `selectRange`, `is_select_range`, and `startDate`.
+ */
 selectRange.addEventListener('click', function() {
     selectIndividualDays.style.backgroundColor = "#ccc";
     selectRange.style.backgroundColor = "#4285f4";
@@ -588,18 +649,39 @@ selectRange.addEventListener('click', function() {
     startDate = -1;
 });
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'selectIndividualDays' element. When clicked, this function changes
+ * the background color of selectIndividualDays and selectRange buttons and also sets the flag `is_select_range` to false.
+ *
+ * Note: This function uses global variables `selectIndividualDays`, `selectRange` and `is_select_range`.
+ */
 selectIndividualDays.addEventListener('click', function() {
     selectRange.style.backgroundColor = "#ccc";
     selectIndividualDays.style.backgroundColor = "#4285f4";
     is_select_range = false;
 });
 
+
+/**
+ * Hides the 'deleteRange' and 'cancelRange' buttons and resets the start date selection.
+ *
+ * Note: This function uses global variables `deleteRange`, `cancelRange` and `startDate`.
+ */
 function resetUI() {
     deleteRange.classList.add("hidden");
     cancelRange.classList.add("hidden");
     startDate = -1;
 }
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'deleteRange' element. When clicked, this function iterates through
+ * all dates stored in the `clickedDates` array, removing each date from both the selected and clicked lists. Resets the
+ * UI to its default state.
+ *
+ * Note: This function uses global variable `clickedDates`
+ */
 deleteRange.addEventListener('click', function() {
     clickedDates.forEach(date => {
         removeFromSelected(date);
@@ -609,6 +691,13 @@ deleteRange.addEventListener('click', function() {
     resetUI();
 });
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'cancelRange' element. It clears the `clickedDates` array, removes
+ * the "clicked" class from all day elements in the calendar to visually deselect them, and then resets the UI to its default state.
+ *
+ * Note: This function uses global variable `clickedDates`
+ */
 cancelRange.addEventListener('click', function() {
     clickedDates = [];
     const days = document.querySelectorAll(".calendar-dates li");
@@ -621,6 +710,13 @@ cancelRange.addEventListener('click', function() {
     manipulate();
 });
 
+/**
+ * Adds an event listener for the 'click' event on the 'showDates' element. When clicked, this function changes the UI
+ * to highlight the 'showDates' button and deselect the 'showHours' button. It then sets a is_show_hours to false to
+ * indicate that dates should be shown.
+ *
+ * Note: This function uses global variables `showHours`, `showDates`, `is_show_hours`.
+ */
 showDates.addEventListener('click', function() {
 	showHours.style.backgroundColor = "#ccc";
 	showDates.style.backgroundColor = "#4285f4";
@@ -628,6 +724,14 @@ showDates.addEventListener('click', function() {
 	manipulate();
 });
 
+
+/**
+ * Adds an event listener for the 'click' event on the 'showHours' element. When clicked, this function changes the UI
+ * to highlight the 'showHours' button and deselect the 'showDates' button. It then sets a is_show_hours to true to
+ * indicate that hours should be shown.
+ *
+ * Note: This function uses global variables `showHours`, `showDates`, `is_show_hours`.
+ */
 showHours.addEventListener('click', function() {
 	showDates.style.backgroundColor = "#ccc";
 	showHours.style.backgroundColor = "#4285f4";
@@ -636,7 +740,14 @@ showHours.addEventListener('click', function() {
 });
 
 
-// Attach a click event listener to each icon
+/**
+ * Iterates over each icon in the `prenexIcons` array and attaches a click event listener to it. When an icon is clicked,
+ * the function checks the icon's id to determine if it represents moving to the previous month ("calendar-prev") or the
+ * next month ("calendar-next"). It then adjusts the `month` variable accordingly. If adjusting the month results in a
+ * value outside the range of 0-11 (January to December), it corrects the year and month to reflect the correct date.
+ *
+ * Note: This function uses global variables `date`, `month` and `year`.
+ */
 prenexIcons.forEach(icon => {
 	icon.addEventListener("click", () => {
 		// Check if the icon is "calendar-prev" or "calendar-next"
@@ -659,6 +770,18 @@ prenexIcons.forEach(icon => {
 	});
 });
 
+
+/**
+ * Converts a time string in the format "HH:MM AM/PM" to the total number of minutes since midnight. Optionally adjusts
+ * the calculation for end times to support a time range that ends at midnight properly.
+ *
+ * @param {string} timeString: The time string to convert, expected in the format "HH:MM AM/PM".
+ * @param {boolean} isStart: A flag indicating whether the time string represents the start time of a range. If false and
+ * the time string represents midnight, it adjusts the return value to reflect the end of the day (1440 minutes).
+ *
+ * @returns {number} totalMinutes: The total number of minutes since midnight represented by the input time string. For
+ * end times representing midnight and `isStart` is false, it returns 1440 to indicate the end of the day.
+ */
 function convertTimeToMinutes(timeString, isStart) {
     // Split the time string into hours, minutes, and period (AM/PM)
     const [time, period] = timeString.split(' ');
@@ -683,6 +806,15 @@ function convertTimeToMinutes(timeString, isStart) {
     return totalMinutes;
 }
 
+
+/**
+ * Sets the start or end value of a slider based on a time input field's value, converting the time to minutes. This function
+ * adjusts the slider's values to reflect the specified start or end time, ensuring the slider accurately represents the time range.
+ *
+ * @param {boolean} isStart: A flag indicating whether to update the start time or end time of the slider. If true, it updates
+ * the start time based on the value from the "startTime" input field. If false, it updates the end time based on the value from
+ * the "endTime" input field.
+ */
 function setSliderValues(isStart) {
 	$(document).ready(function () {
 		const currentValues = $("#ex2").slider('getValue');
@@ -700,42 +832,53 @@ function setSliderValues(isStart) {
 	});
 };
 
-document.getElementById("startTime").addEventListener("blur", function () {
-    is_valid = validateTimeFormat(this.value);
-	blockSetTimeButtons(is_valid);
-	if (is_valid) {
-        document.getElementById("startTime").classList.remove("time-error");
-        document.getElementById("startTime-error-message").style.display = "none";
-		setSliderValues(true);
-		$(document).ready(function () {
-			const currentValues = $("#ex2").slider('getValue');
-		});
-    } else {
-        document.getElementById("startTime").classList.add("time-error");
-        document.getElementById("startTime-error-message").innerText = "Invalid format";
-        document.getElementById("startTime-error-message").style.display = "block";
-    }
-});
+
+/**
+ * Attaches a "blur" event listener to an input field specified by `elementId`. This event triggers when the input field
+ * loses focus, validating the time format entered by the user. Depending on the validation result, it either updates the
+ * slider values to reflect the new time or displays an error message. The function dynamically handles both start and
+ * end time input fields by determining which slider value to update based on the `elementId` argument. It also applies
+ * or removes error styling based on the time format's validity.
+ *
+ * @param {string} elementId: The ID of the time input field to which the blur event listener will be attached. This function is designed
+ * to work with both "startTime" and "endTime" input fields by adjusting its behavior based on the `elementId` provided.
+ */
+function addTimeBlurEventListener(elementId) {
+    document.getElementById(elementId).addEventListener("blur", function () {
+        const is_valid = validateTimeFormat(this.value);
+        blockSetTimeButtons(is_valid);
+
+        const timeElement = document.getElementById(elementId);
+        const errorMessageElement = document.getElementById(elementId + "-error-message");
+
+        if (is_valid) {
+            timeElement.classList.remove("time-error");
+            errorMessageElement.style.display = "none";
+            setSliderValues(elementId === "startTime");
+            const currentValues = $("#ex2").slider('getValue');
+        } else {
+            timeElement.classList.add("time-error");
+            errorMessageElement.innerText = "Invalid format";
+            errorMessageElement.style.display = "block";
+        }
+    });
+}
+
+// Apply the event listener to both startTime and endTime
+addTimeBlurEventListener("startTime");
+addTimeBlurEventListener("endTime");
 
 
-document.getElementById("endTime").addEventListener("blur", function () {
-    is_valid = validateTimeFormat(this.value);
-	blockSetTimeButtons(is_valid);
-	if (is_valid) {
-        document.getElementById("endTime").classList.remove("time-error");
-        document.getElementById("endTime-error-message").style.display = "none";
-		setSliderValues(false);
-		$(document).ready(function () {
-			const currentValues = $("#ex2").slider('getValue');
-		});
-    } else {
-		document.getElementById("endTime").classList.add("time-error");
-        document.getElementById("endTime-error-message").innerText = "Invalid format";
-        document.getElementById("endTime-error-message").style.display = "block";
-    }
-});
-
-
+/**
+ * Validates a time string against a specific format ("HH:MM AM/PM") and checks if it represents a logical time range
+ * when compared to another time value. The function uses a regular expression to validate the format of the time string
+ * and then compares it against another time value (end time) to ensure the start time does not come after the end time,
+ * except when the end time represents the start of a new day ("12:00 AM").
+ *
+ * @param {string} timeString: The time string to validate, expected in the format "HH:MM AM/PM".
+ * @returns {boolean} is_valid: True if the time string matches the specified format and represents a logical time range;
+ * otherwise, false.
+ */
 function validateTimeFormat(timeString) {
     // Regular expression for the specified format
     const timeRegex = /^(1[0-2]|0?[1-9]):[0-5][0-9] [APap][Mm]$/;
@@ -755,6 +898,15 @@ function validateTimeFormat(timeString) {
 };
 
 
+/**
+ * Modifies the enabled state, background color, and cursor style of wholeDayOff, outOfOffice, inOffice buttons based on
+ * whether the input time is valid or not.
+ *
+ * @param {boolean} flag: A boolean flag indicating whether to enable or disable the buttons. If true, buttons are enabled;
+ * if false, buttons are disabled.
+ *
+ * Note: This function uses global variables `wholeDayOff`, `outOfOffice` and `inOffice`.
+ */
 function blockSetTimeButtons(flag) {
     const settings = {
         disabled: !flag,
@@ -770,11 +922,6 @@ function blockSetTimeButtons(flag) {
 };
 
 
-function updateRangeFromInput(startTimeInput, endTimeInput, value1, value2) {
-    startTimeInput.value = minutesToTime(value1);
-    endTimeInput.value = minutesToTime(value2);
-}
-
 function minutesToTime(minutes) {
     const hours = Math.floor(minutes / 60) % 12;
     const mins = minutes % 60;
@@ -786,6 +933,29 @@ function minutesToTime(minutes) {
     return `${formattedHours}:${formattedMins} ${period}`;
 }
 
+
+/**
+ * Updates the values of start and end time input fields based on given minute values by converting those minute values
+ * into time strings. This function synchronizes slider values with input fields in a UI where users can select time
+ * ranges either by moving a slider or by entering times directly into input fields.
+ *
+ * @param {HTMLElement} startTimeInput: The DOM element for the start time input field.
+ * @param {HTMLElement} endTimeInput: The DOM element for the end time input field.
+ * @param {number} value1: The start time value in minutes to be converted and displayed in the start time input field.
+ * @param {number} value2: The end time value in minutes to be converted and displayed in the end time input field.
+ */
+function updateRangeFromInput(startTimeInput, endTimeInput, value1, value2) {
+    startTimeInput.value = minutesToTime(value1);
+    endTimeInput.value = minutesToTime(value2);
+}
+
+
+/**
+ * Initializes a slider component for selecting start and end times, and synchronizes its values with corresponding input fields
+ * for start and end times. This function sets up the slider with a formatter function that updates the start and end time input
+ * fields whenever the slider values change. It also clears any error states from the start and end time input fields and ensures
+ * that time setting buttons are enabled.
+ */
 let setTime = () => {
 	const startTimeInput = document.getElementById("startTime");
 	const endTimeInput = document.getElementById("endTime");
@@ -810,6 +980,14 @@ document.addEventListener('DOMContentLoaded', function() {
     get_existing_unavailable_time();
 });
 
+
+/**
+ * Fetches existing unavailable times from a local server endpoint and updates the global `selectedDates` array with these
+ * time slots. After successfully retrieving and updating the unavailable times, it calls `setTime` to initialize or update time
+ * selection UI components (like sliders) and `manipulate` to reflect the changes in the calendar or relevant UI.
+ *
+ * Note: This function uses global variable `selectedDates`
+ */
 function get_existing_unavailable_time() {
     fetch('http://localhost:5000/get_existing_unavailable_time', {
         method: 'POST',
@@ -832,13 +1010,29 @@ function get_existing_unavailable_time() {
     .catch(error => console.error("Error:", error));
 }
 
+
+/**
+ * Attaches a click event listener to the 'confirmButton' element. When clicked, this function collects the currently selected
+ * dates from a global variable `selectedDates` and the chat ID from a Telegram user's data (`tg.initDataUnsafe.user.id`). It
+ * then calls `sendDataToServer` with these collected dates and the chat ID as parameters.
+ *
+ * Note: This function uses global variable `selectedDates`
+ */
 confirmButton.addEventListener('click', function () {
     var dates = selectedDates;
     var chatId = tg.initDataUnsafe.user.id;
     sendDataToServer(dates, chatId);
 });
 
-// Sending out data
+
+/**
+ * Submits an array of selected dates along with a chat ID to a server endpoint via a POST request. This function is designed
+ * to work within the context of a Telegram Web App, where it can be used to send user-selected dates from a calendar UI to
+ * a backend server for processing. After the data is sent and a response is received, it closeы the Telegram Web App interface.
+ *
+ * @param {Array} dates: An array containing the selected dates to be processed by the server.
+ * @param {string} chatId: The chat ID associated with the current user session in the Telegram Web App, used to identify the user.
+ */
 function sendDataToServer(dates, chatId) {
     fetch('http://localhost:5000/process_dates', {
         method: 'POST',
