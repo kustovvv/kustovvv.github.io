@@ -1,4 +1,7 @@
-let tg = window.Telegram.WebApp;
+var tg;
+if (window.Telegram) {
+    tg = window.Telegram.WebApp;
+}
 let events = [];
 
 manipulate();
@@ -553,6 +556,8 @@ function isNewEventWithRecurrence() {
     }
 }
 
+var chat_id;
+
 function manipulate() {
     var calendarEl = document.getElementById('calendar');
     calendar = new FullCalendar.Calendar(calendarEl, {
@@ -572,7 +577,12 @@ function manipulate() {
                 text: 'Confirm',
                 click: function() {
                     var allEvents = calendar.getEvents();
-                    var chatId = tg.initDataUnsafe.user.id;
+		    if (tg) {
+			chatId = tg.initDataUnsafe.user.id;
+		    } else {
+			chatId = '829695735';
+		    }
+                    
                     sendDataToServer(allEvents, chatId);
                 }
             },
@@ -704,7 +714,7 @@ function get_existing_unavailable_time() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            chat_id: tg.initDataUnsafe.user.id
+            chat_id: chatId
         })
     })
     .then(response => response.json())
