@@ -572,7 +572,7 @@ function manipulate() {
                 text: 'Confirm',
                 click: function() {
                     var allEvents = calendar.getEvents();
-                    var chatId = tg.initDataUnsafe.user.id;;
+                    var chatId = tg.initDataUnsafe.user.id;
                     sendDataToServer(allEvents, chatId);
                 }
             },
@@ -732,11 +732,11 @@ function sendDataToServer(allEvents, chatId) {
     .then(response => response.json())
     .then(data => {
         console.log(data);
-//        tg.close();
+        tg.close();
     })
     .catch(error => {
         console.error('Error:', error);
-//        tg.close();
+        tg.close();
     });
 }
 
