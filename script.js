@@ -1,3 +1,4 @@
+let tg = window.Telegram.WebApp;
 let events = [];
 
 manipulate();
@@ -571,7 +572,7 @@ function manipulate() {
                 text: 'Confirm',
                 click: function() {
                     var allEvents = calendar.getEvents();
-                    var chatId = '829695735';
+                    var chatId = tg.initDataUnsafe.user.id;;
                     sendDataToServer(allEvents, chatId);
                 }
             },
@@ -703,7 +704,7 @@ function get_existing_unavailable_time() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            chat_id: '829695735'
+            chat_id: tg.initDataUnsafe.user.id;
         })
     })
     .then(response => response.json())
