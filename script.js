@@ -659,16 +659,8 @@ function manipulate() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (window.Telegram) {
-        tg = window.Telegram.WebApp;
-    }
-    if (tg) {
-        chatId = tg.initDataUnsafe.user.id;
-    } else {
-        chatId = '829695735';
-    }
-    console.log("tg: ", tg);
-    console.log("chatId: ", chatId);
+    tg = window.Telegram.WebApp;
+    chatId = tg.initDataUnsafe.user.id;
     get_existing_unavailable_time();
 });
 
