@@ -2,6 +2,7 @@ var tg;
 if (window.Telegram) {
     tg = window.Telegram.WebApp;
 }
+console.log("tg: ", tg);
 let events = [];
 
 manipulate();
