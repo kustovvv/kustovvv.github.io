@@ -1,8 +1,7 @@
+var googleCalendarEvents;
 var tg;
-if (window.Telegram) {
-    tg = window.Telegram.WebApp;
-}
-console.log("tg: ", tg);
+var chatId;
+
 let events = [];
 
 manipulate();
@@ -557,8 +556,6 @@ function isNewEventWithRecurrence() {
     }
 }
 
-var chatId;
-
 function manipulate() {
     var calendarEl = document.getElementById('calendar');
     calendar = new FullCalendar.Calendar(calendarEl, {
@@ -578,12 +575,6 @@ function manipulate() {
                 text: 'Confirm',
                 click: function() {
                     var allEvents = calendar.getEvents();
-		    if (tg) {
-			chatId = tg.initDataUnsafe.user.id;
-		    } else {
-			chatId = '829695735';
-		    }
-                    
                     sendDataToServer(allEvents, chatId);
                 }
             },
@@ -667,9 +658,17 @@ function manipulate() {
     });
 }
 
-var googleCalendarEvents;
-
 document.addEventListener('DOMContentLoaded', function() {
+    if (window.Telegram) {
+        tg = window.Telegram.WebApp;
+    }
+    if (tg) {
+        chatId = tg.initDataUnsafe.user.id;
+    } else {
+        chatId = '829695735';
+    }
+    console.log("tg: ", tg);
+    console.log("chatId: ", chatId);
     get_existing_unavailable_time();
 });
 
