@@ -556,7 +556,7 @@ function isNewEventWithRecurrence() {
     }
 }
 
-var chat_id;
+var chatId;
 
 function manipulate() {
     var calendarEl = document.getElementById('calendar');
