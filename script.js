@@ -660,8 +660,6 @@ function manipulate() {
 
 document.addEventListener('DOMContentLoaded', function() {
     chatId = tg.initDataUnsafe.user.id;
-    var inputChatIdTest = document.getElementById('test-tg-chat-id');
-    inputChatIdTest.value = chatId;
     get_existing_unavailable_time();
 });
 
