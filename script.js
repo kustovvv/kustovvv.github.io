@@ -575,6 +575,7 @@ function manipulate() {
                 text: 'Confirm',
                 click: function() {
                     var allEvents = calendar.getEvents();
+		    var chatId = tg.initDataUnsafe.user.id;
                     sendDataToServer(allEvents, chatId);
                 }
             },
@@ -660,7 +661,7 @@ function manipulate() {
 
 document.addEventListener('DOMContentLoaded', function() {
     tg = window.Telegram.WebApp;
-    chatId = tg.initDataUnsafe.user.id;
+    // chatId = tg.initDataUnsafe.user.id;
     get_existing_unavailable_time();
 });
 
@@ -706,7 +707,7 @@ function get_existing_unavailable_time() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            chat_id: chatId
+            chat_id: tg.initDataUnsafe.user.id
         })
     })
     .then(response => response.json())
