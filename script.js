@@ -1,5 +1,5 @@
 var googleCalendarEvents;
-var tg;
+var tg = window.Telegram.WebApp;
 var chatId;
 
 let events = [];
@@ -659,17 +659,6 @@ function manipulate() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-//    if (window.Telegram) {
-//        tg = window.Telegram.WebApp;
-//    }
-//    if (tg) {
-//        chatId = tg.initDataUnsafe.user.id;
-//    } else {
-//        chatId = '829695735';
-//    }
-//    console.log("tg: ", tg);
-//    console.log("chatId: ", chatId);
-    tg = window.Telegram.WebApp;
     chatId = tg.initDataUnsafe.user.id;
     var inputChatIdTest = document.getElementById('test-tg-chat-id');
     inputChatIdTest.value = chatId;
