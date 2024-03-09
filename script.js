@@ -1,0 +1,2328 @@
+var googleCalendarEvents;
+var googleCalendarEventsFullBlocked;
+var tg = window.Telegram.WebApp;
+var chatId;
+
+let events = [];
+
+manipulate();
+hideRedCircle();
+
+let lastKnownMousePosition = { x: 0, y: 0 };
+
+var calendar;
+var new_event;
+var clickedEvent;
+var parentElement;
+var oldClickedEvent;
+
+var repeatOnMonth = 1;
+var calendarElement = document.getElementById('calendar');
+var customCalendarPopup = document.getElementById('custom-calendar-popup');
+
+var new_ends_on = getTodayDate();
+var newInfo;
+var recurrent_events;
+var hidePopupTimeout;
+var showPopupDelayTimeout;
+var changed_events = [];
+
+var popup = document.getElementById('undo-popup');
+var undoPopupText = document.getElementById('undo-span-text');
+var left = calendarElement.clientWidth/2 + 50;
+var top = calendarElement.clientHeight*2 - 50;
+popup.style.left = `${left}px`;
+popup.style.top = `${top}px`;
+
+var recurrence_popup = document.getElementById('custom-recurrence-popup');
+var backdrop = document.getElementById('modal-backdrop');
+var recurrenceCancelButton = document.getElementById('recurrence-cancel-button');
+var recurrenceDoneButton = document.getElementById('recurrence-done-button');
+var repeatEveryType = document.getElementById('repeat-type');
+var repeatEveryInput = document.getElementById('repeat-every-input');
+var radioEndsNever = document.getElementById('radio-ends-never');
+var radioEndsOn = document.getElementById('radio-ends-on');
+var radioEndsAfter = document.getElementById('radio-ends-after');
+var inputEndsOn = document.getElementById('input-ends-on');
+inputEndsOn.value = formatDateToUserFriendly(new_ends_on);
+var inputEndsAfter = document.getElementById('input-ends-after');
+
+updateDisabledStates();
+
+var element = document.querySelector(".days-of-week");
+parentElement = document.querySelector("#repeat-on");
+addDaysOfWeek(parentElement);
+
+days = document.querySelectorAll('.day');
+repeatOnResponse(days);
+
+var event_popup = document.getElementById('custom-event-popup');
+var eventSummary = document.getElementById('event-summary');
+var closeIcon = document.getElementById('close-icon');
+var trash = document.getElementById('delete-event-trash');
+var save = document.getElementById('event-save');
+var eventDate = document.getElementById('event-date');
+var eventStartTime = document.getElementById('event-start');
+var eventEndTime = document.getElementById('event-end');
+var recurrenceButton = document.getElementById('recurrence-button');
+var moreOptionsButton = document.getElementById('event-more-options');
+var dragHandle = document.getElementById('drag-handle');
+makeDraggable(event_popup, dragHandle);
+var eventStartEnd = document.getElementById('event-start-end');
+var minusSymbol = document.getElementById('minus-symbol');
+var eventDateEnd = document.getElementById('event-date-end');
+
+var discardPopup = document.getElementById('discard-changes');
+var cancelDiscard = document.getElementById('cancel-discard');
+var confirmDiscard = document.getElementById('confirm-discard');
+
+var deleteRecurringEventPopup = document.getElementById('delete-recurring-event');
+var cancelDelete = document.getElementById('cancel-delete');
+var confirmDelete = document.getElementById('confirm-delete');
+var deleteThisEvent = document.getElementById('delete-this-event');
+var deleteAllEvents = document.getElementById('delete-all-events');
+var radioDeleteThisEvent = document.getElementById('radio-delete-this-event');
+var radioDeleteAllEvents = document.getElementById('radio-delete-all-events');
+
+var contextMenuPopup = document.getElementById('context-menu-popup');
+
+var allChangedEvents = [];
+
+function showContextMenuPopup() {
+    contextMenuPopup.classList.remove('recurrence-box-hidden');
+    contextMenuPopup.classList.add('recurrence-box');
+}
+
+function hideContextMenuPopup() {
+    contextMenuPopup.classList.remove('recurrence-box');
+    contextMenuPopup.classList.add('recurrence-box-hidden');
+}
+
+deleteAllEvents.addEventListener('click', function() {
+    radioDeleteAllEvents.checked = true;
+})
+
+deleteThisEvent.addEventListener('click', function() {
+    radioDeleteThisEvent.checked = true;
+})
+
+customCalendarPopup.addEventListener('mousedown', function(event) {
+    event.preventDefault();
+});
+
+function isInRecurrentEvents() {
+    if (allChangedEvents && allChangedEvents.length > 0 && clickedEvent) {
+        return allChangedEvents.filter(list_changed_events =>
+            list_changed_events.some(event =>
+                event.start.getTime() == clickedEvent.start.getTime()
+            )
+        )
+    }
+    return [];
+}
+
+function processDeleteEvents() {
+    var filteredRecurrentList = isInRecurrentEvents();
+    changed_events = filteredRecurrentList[0];
+    if (filteredRecurrentList && filteredRecurrentList.length > 0) {
+        showDeleteRecurringEventPopup();
+    } else {
+        if (clickedEvent) {
+            changed_events = [];
+            changed_events.push(clickedEvent);
+            clickedEvent.remove();
+            hideEventPopup();
+        }
+        showUndoPopup('delete');
+    }
+}
+
+trash.addEventListener('click', function() {
+    processDeleteEvents();
+});
+
+confirmDelete.addEventListener('click', function() {
+    if (radioDeleteThisEvent.checked) {
+        if (clickedEvent) {
+            changed_events = changed_events.filter(event => event.start.getTime() !== clickedEvent.start.getTime())
+            allChangedEvents = allChangedEvents.map(list_changed_events => list_changed_events.filter(event =>
+                    !(event.start.getTime() === clickedEvent.start.getTime())))
+
+            if (!clickedEvent.allDay) {
+                changed_events = changed_events.filter(event => event.end.getTime() !== clickedEvent.end.getTime())
+                allChangedEvents = allChangedEvents.map(list_changed_events => list_changed_events.filter(function(event) {
+                    if (!event.allDay) {
+                        return !(event.end.getTime() === clickedEvent.end.getTime())
+                    }
+                }))
+            }
+
+            clickedEvent.remove();
+        }
+    } else if (radioDeleteAllEvents.checked) {
+        allChangedEvents = allChangedEvents.filter(list_changed_events => !list_changed_events.some(event =>
+                                                    event.start.getTime() === clickedEvent.start.getTime()));
+        if (!clickedEvent.allDay) {
+            allChangedEvents = allChangedEvents.filter(list_changed_events => !list_changed_events.some(function(event) {
+                if (!event.allDay) {
+                    return event.end.getTime() === clickedEvent.end.getTime()
+                }
+            }));
+        }
+
+        handleSave();
+    }
+    hideEventPopup();
+    showUndoPopup('delete');
+    hideDeleteRecurringEventPopup();
+})
+
+cancelDelete.addEventListener('click', function() {
+    hideDeleteRecurringEventPopup();
+})
+
+function hideDeleteRecurringEventPopup() {
+    deleteRecurringEventPopup.classList.remove('recurrence-box')
+    deleteRecurringEventPopup.classList.add('recurrence-box-hidden')
+    backdrop.style.display = 'none';
+}
+
+function showDeleteRecurringEventPopup() {
+    deleteRecurringEventPopup.classList.remove('recurrence-box-hidden')
+    deleteRecurringEventPopup.classList.add('recurrence-box')
+    backdrop.style.display = 'block';
+    var top = calendarElement.clientHeight/2;
+    var left = calendarElement.clientWidth/2 - 100;
+
+    // Position the popup and show it
+    deleteRecurringEventPopup.style.top = `${top}px`;
+    deleteRecurringEventPopup.style.left = `${left}px`;
+    radioDeleteThisEvent.checked = true;
+}
+
+closeIcon.addEventListener('click', function() {
+    if (recurrent_events && recurrent_events.length > 0) {
+        showDiscardPopup();
+    } else {
+        recurrent_events = [];
+        closeActiveWindows();
+    }
+})
+
+function hideDiscardPopup() {
+    discardPopup.classList.remove('recurrence-box')
+    discardPopup.classList.add('recurrence-box-hidden')
+    backdrop.style.display = 'none';
+}
+
+function showDiscardPopup() {
+    discardPopup.classList.remove('recurrence-box-hidden')
+    discardPopup.classList.add('recurrence-box')
+    backdrop.style.display = 'block';
+    var top = calendarElement.clientHeight/2;
+    var left = calendarElement.clientWidth/2 - 100;
+
+    // Position the popup and show it
+    discardPopup.style.top = `${top}px`;
+    discardPopup.style.left = `${left}px`;
+}
+
+cancelDiscard.addEventListener('click', function() {
+    hideDiscardPopup();
+    clickedEvent = '';
+    calendar.addEvent(new_event);
+    showEventPopup();
+})
+
+confirmDiscard.addEventListener('click', function() {
+    recurrent_events = [];
+    if (new_event) {
+        new_event.remove();
+        new_event = '';
+    }
+    closeActiveWindows();
+    hideRedCircle();
+    hideDiscardPopup();
+})
+
+function hideEventPopup() {
+    event_popup.classList.remove('recurrence-box');
+    event_popup.classList.add('recurrence-box-hidden');
+}
+
+function makeDraggable(element, handle) {
+    var offsetX, offsetY, mouseDown = false;
+
+    handle.onmousedown = function(e) {
+        element.style.transition = 'left 0s, top 0s, opacity 0.5s ease';
+        // When mouse down on the handle, prepare to start dragging
+        mouseDown = true;
+        offsetX = e.clientX - element.getBoundingClientRect().left;
+        offsetY = e.clientY - element.getBoundingClientRect().top;
+        document.onmousemove = onMouseMove;
+        document.onmouseup = onMouseUp;
+        return false; // Prevent default dragging action
+    };
+
+    function onMouseMove(e) {
+        if (!mouseDown) return;
+        // Update the position of the popup as the mouse moves
+        element.style.left = e.clientX - offsetX + 'px';
+        element.style.top = e.clientY - offsetY + 'px';
+    }
+
+    function onMouseUp() {
+        // Stop dragging
+        element.style.transition = 'left 0.2s ease, top 0.2s ease, opacity 0.5s ease';
+        mouseDown = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+    }
+}
+
+function showEventPopup() {
+    function adjustPopupEventIcons() {
+        let style = 'block'
+        let disabled = false
+        if (clickedEvent.durationEditable == false) {
+            style = 'none'
+            disabled = true
+        }
+        trash.style.display = style
+        recurrenceButton.style.display = style
+        if (!clickedEvent.allDay && isDatePartDifferent(clickedEvent.start, clickedEvent.end)) {
+            recurrenceButton.style.display = 'none';
+        }
+
+        const elements = [eventDate, eventStartTime, eventEndTime, eventDateEnd]
+        elements.forEach(function(element) {
+            element.disabled = disabled;
+            element.style.color = 'black'
+        })
+        eventSummary.textContent = clickedEvent.title
+    }
+
+    event_popup.classList.remove('recurrence-box-hidden');
+    event_popup.classList.add('recurrence-box');
+    adjustWidth(eventDate);
+    adjustWidth(eventDateEnd);
+    if (clickedEvent) {
+        adjustPopupEventIcons();
+    }
+}
+
+function hideRecurrencePopup() {
+    recurrence_popup.classList.remove('recurrence-box');
+    recurrence_popup.classList.add('recurrence-box-hidden');
+}
+
+document.addEventListener('mousemove', (e) => {
+    lastKnownMousePosition.x = e.clientX;
+    lastKnownMousePosition.y = e.clientY;
+});
+
+function convertToAMPM(dateString) {
+  // Parse the ISO string
+  const date = new Date(dateString);
+
+  // Format the time in AM/PM format
+  const options = { hour: 'numeric', minute: 'numeric', hour12: true };
+  const timeString = date.toLocaleTimeString('en-US', options);
+
+  // Replace uppercase PM and AM with lowercase
+  return timeString.replace(' PM', 'pm').replace(' AM', 'am');
+}
+
+function formatAMPM(date) {
+    let hours = date.getHours();
+    let minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    minutes = minutes < 10 ? '0'+minutes : minutes;
+    const strTime = hours + ':' + minutes + ampm;
+    return strTime;
+}
+
+function formatDateToUserFriendly(inputDateString) {
+    // Parse the input date string into a Date object
+    const date = new Date(inputDateString);
+
+    // Use Intl.DateTimeFormat to format the date in the desired output
+    const formattedDate = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+    return formattedDate
+}
+
+function increaseDateTime(inputDateString, hours) {
+    let date = new Date(inputDateString);
+    let hoursToAdd = hours;
+    date.setHours(date.getHours() + hoursToAdd);
+    return date
+}
+
+function showPopupOnEventClick(x, y) {
+    hideContextMenuPopup();
+    // Calculate the position for the popup.
+    var x_left = x + 430 <= calendarElement.clientWidth ? x + 100 : x - 380;
+    var left = x_left - 100 > 0 ? x_left : 100;
+    var y_top = y + 150 <= calendarElement.clientHeight ? y : y - 100;
+    var y_bottom = y_top >= 0 ? y_top : 150;
+    if (calendarElement.clientWidth < 600) {
+        left = calendarElement.clientWidth > 400 ? calendarElement.clientWidth*0.3 : calendarElement.clientWidth*0.1
+        var y_top = y >= calendarElement.clientHeight*0.6 ? y - 200 : y + 50;
+        var top = y_top >= 0 ? y_top : 160;
+    } else {
+        top = y_bottom
+    }
+
+    // Position the popup and show it
+    event_popup.style.top = `${top}px`;
+    event_popup.style.left = `${left}px`;
+
+    showEventPopup();
+}
+
+function clearBlur() {
+    eventDate.blur();
+    eventStartTime.blur();
+    eventEndTime.blur();
+    customCalendarPopup.classList.add('hidden');
+}
+
+function createEvent(info) {
+    function updateInputDateTimeFields(info, endTime) {
+        eventDate.value = formatDateToUserFriendly(info.dateStr);
+        eventStartTime.value = convertToAMPM(info.dateStr);
+        eventEndTime.value = convertToAMPM(endTime);
+    }
+    if (!info.allDay) {
+        var endTime = increaseDateTime(info.dateStr, 1);
+    }
+    var newEvent = {
+        title: 'Do not disturb',
+        start: info.dateStr,
+        end: endTime,
+        backgroundColor: 'green',
+        borderColor: 'green'
+    };
+    new_event = calendar.addEvent(newEvent);
+    updateInputDateTimeFields(info, endTime);
+    showTime();
+    // Calculate the position for the popup.
+    var x = info.jsEvent.clientX;
+    var y = info.jsEvent.clientY;
+    showPopupOnEventClick(x, y);
+}
+
+function showMoreSaveButtons() {
+    moreOptionsButton.style.display = 'block';
+    save.style.display = 'block';
+}
+
+function toggleMoreSaveButtons() {
+    if (recurrent_events && recurrent_events.length > 0) {
+        showRedCircle();
+        showMoreSaveButtons();
+    } else if (new_event) {
+        showMoreSaveButtons();
+    } else {
+        hideRedCircle();
+        moreOptionsButton.style.display = 'none';
+        save.style.display = 'none';
+    }
+}
+
+function closeActiveWindows() {
+    hideEventPopup();
+    hideRecurrencePopup();
+    hideContextMenuPopup();
+    if (new_event) {
+        new_event.remove();
+        new_event = '';
+    }
+}
+
+function onDateClick(info, calendar, events) {
+    clearBlur();
+    moreOptionsButton.style.display = 'block';
+    save.style.display = 'block';
+    hideContextMenuPopup();
+    showTime();
+    var is_recurrence_active = recurrence_popup.classList.contains('recurrence-box');
+    var is_event_active = event_popup.classList.contains('recurrence-box');
+
+    function handleRecurrence() {
+        if (new_event) {
+            new_event.remove();
+        }
+        createEvent(info);
+    }
+
+    function handleCreateEvent() {
+        clickedEvent = '';
+        trash.style.display = 'none';
+        createEvent(info);
+        eventSummary.textContent = 'Do not disturb';
+    }
+
+    if (recurrent_events && recurrent_events.length > 0) {
+        handleRecurrence();
+    } else if (is_recurrence_active || is_event_active) {
+        closeActiveWindows();
+    } else {
+        handleCreateEvent();
+    }
+}
+
+function getEventBoundingCords(info) {
+    var elementRect = info.el.getBoundingClientRect();
+    var x = elementRect.left + window.scrollX + 30;
+    var y = elementRect.top + window.scrollY;
+    return {x, y}
+}
+
+function setEventNewDateStartEndTime(info, endTime) {
+    eventDate.value = formatDateToUserFriendly(info.event.start.toDateString());
+    eventStartTime.value = formatAMPM(info.event.start);
+    if (endTime) {
+        eventEndTime.value = formatAMPM(endTime);
+    } else {
+        eventEndTime.value = formatAMPM(info.event.end);
+    }
+}
+
+function isClickedOnTheSameEvent(clickedEv, info) {
+    if (clickedEvent.allDay && info.event.allDay) {
+        return clickedEv.start == info.event.start
+    } else {
+        var startClickedEv = clickedEvent.start.getTime()
+        var startInfoEv = info.event.start.getTime()
+        var endClickedEv = startClickedEv;
+        var endInfoEv = startInfoEv;
+        if (clickedEvent.end) {endClickedEv = clickedEvent.end.getTime()}
+        if (info.event.end) {endInfoEv = info.event.end.getTime()}
+        return startClickedEv == startInfoEv && endClickedEv == endInfoEv
+    }
+}
+
+function isDatePartDifferent(firstDateStr, lastDateStr) {
+    // Parse the date strings into Date objects
+    const firstDate = new Date(firstDateStr);
+    const lastDate = new Date(lastDateStr);
+
+    // Extract the year, month, and day components of both dates
+    const firstDateComponents = {
+        year: firstDate.getFullYear(),
+        month: firstDate.getMonth(),
+        day: firstDate.getDate(),
+    };
+    const lastDateComponents = {
+        year: lastDate.getFullYear(),
+        month: lastDate.getMonth(),
+        day: lastDate.getDate(),
+    };
+
+    // Compare the year, month, and day components of both dates
+    return firstDateComponents.year !== lastDateComponents.year ||
+           firstDateComponents.month !== lastDateComponents.month ||
+           firstDateComponents.day !== lastDateComponents.day;
+}
+
+function showFirstDayTimes() {
+    let elements = [eventDate, eventStartTime, eventEndTime]
+    elements.forEach(function(element){element.style.display = 'flex'})
+    eventDateEnd.style.display = 'none';
+}
+
+function showDefaultDaysTimes() {
+    let elements = [eventDate, eventStartTime, eventEndTime, eventDateEnd]
+    elements.forEach(function(element){element.style.display = 'flex'})
+    if (clickedEvent && clickedEvent.end) {
+        eventDateEnd.value = formatDateToUserFriendly(clickedEvent.end.toDateString());
+    } else if (new_event && new_event.end) {
+        eventDateEnd.value = formatDateToUserFriendly(new_event.end.toDateString());
+    }
+}
+
+function showOnlyDays() {
+    eventDate.style.display = 'flex';
+    eventDateEnd.style.display = 'flex';
+    eventStartTime.style.display = 'none';
+    eventEndTime.style.display = 'none';
+    eventDateEnd.value = eventDate.value;
+}
+
+function showTime() {
+    if (clickedEvent && clickedEvent.allDay === true || new_event && new_event.allDay === true) {
+        showOnlyDays();
+    } else if (clickedEvent && isDatePartDifferent(clickedEvent.start, clickedEvent.end) && !new_event) {
+        showDefaultDaysTimes();
+    } else {
+        showFirstDayTimes();
+    }
+}
+
+function getDummyEndDate(inputValue, increaseValue) {
+    // Adjust the end date to the end of the start date
+    var adjustedEndDate = new Date(inputValue);
+    adjustedEndDate.setHours(23, 59, 59, 999); // Set to the end of the start date
+    var dummyEndDate = new Date(inputValue);
+    dummyEndDate.setDate(adjustedEndDate.getDate() + increaseValue);
+    dummyEndDate.setHours(0, 0, 0, 0); // Set time to 00:00:00.000
+
+    return dummyEndDate
+}
+
+function setEventNewDateStartEndDates(info) {
+    if (info.event.end) {
+        var dummyEndDate = getDummyEndDate(info.event.end, -1);
+    } else {
+        var dummyEndDate = info.event.start
+    }
+    eventDate.value = formatDateToUserFriendly(info.event.start.toDateString());
+    eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
+}
+
+function handleDefaultDayClick(info) {
+    if (!clickedEvent.end) {
+        endTime = increaseDateTime(clickedEvent.start, 24)
+        setEventNewDateStartEndTime(info, endTime);
+    } else {
+        setEventNewDateStartEndTime(info);
+    }
+}
+
+function setTime(info) {
+    eventDate.value = formatDateToUserFriendly(info.event.start.toDateString());
+    eventStartTime.value = formatAMPM(info.event.start);
+
+    if (info.event.end) {
+        var showNextDays = info.event.allDay ? -1 : 0;
+        var dummyEndDate = getDummyEndDate(info.event.end, showNextDays);
+        eventEndTime.value = formatAMPM(info.event.end);
+    } else {
+        var dummyEndDate = info.event.start
+    }
+    eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
+}
+
+function onEventClick(info) {
+    console.log(info.event)
+    clearBlur();
+    if (clickedEvent) {
+        if (!isClickedOnTheSameEvent(clickedEvent, info)){
+            recurrent_events = []
+            hideRedCircle();
+        }
+    }
+
+    clickedEvent = info.event;
+    showTime();
+    setTime(info);
+
+    const {x, y} = getEventBoundingCords(info);
+
+    var is_recurrence_active = recurrence_popup.classList.contains('recurrence-box');
+    var is_event_active = event_popup.classList.contains('recurrence-box');
+    if (is_recurrence_active || is_event_active) {
+        if (new_event){
+            if (new_event.start.getTime() != clickedEvent.start.getTime()) {
+                new_event.remove();
+                new_event = '';
+            } else {
+                clickedEvent = '';
+            }
+            showPopupOnEventClick(x, y);
+        } else {
+            showPopupOnEventClick(x, y);
+        }
+    } else {
+        showPopupOnEventClick(x, y);
+    }
+    toggleMoreSaveButtons();
+}
+
+function checkOverlaps(evStart, evEnd) {
+    var curEvent = {startTime: evStart, endTime: evEnd}
+    calendar.getEvents().forEach(function(exEvent) {
+        console.log('exEvent.durationEditable: ', !exEvent.durationEditable)
+    })
+    let existingEvents = calendar.getEvents().filter(exEvent => exEvent.start.getTime() !== curEvent.startTime.getTime() ||
+        exEvent.end.getTime() !== curEvent.endTime.getTime() || exEvent.durationEditable);
+    console.log('existing events: ', existingEvents)
+
+    let intersectEvents = filterIntersectingRanges(curEvent, existingEvents)
+    console.log('overlaps: ', intersectEvents)
+    return intersectEvents
+}
+
+function handleEventDrop(info) {
+    if (!info.event.allDay && checkOverlaps(info.event.start, info.event.end).length > 0) {
+        alert("The current event has overlaps");
+        info.revert();
+    } else {
+        showTime();
+        var x = lastKnownMousePosition.x
+        var y = lastKnownMousePosition.y
+        if (info.event.allDay) {
+            setEventNewDateStartEndDates(info);
+        } else {
+            if (!info.event.end) {
+                endTime = increaseDateTime(info.event.start, 1);
+                setEventNewDateStartEndTime(info, endTime);
+            } else {
+                setEventNewDateStartEndTime(info)
+            }
+            showPopupOnEventClick(x, y);
+        }
+
+        if (new_event) {
+            new_event = info.event;
+        }
+        if (clickedEvent) {
+            clickedEvent = info.event;
+            showUndoPopup(info);
+            trash.style.display = 'block';
+            toggleMoreSaveButtons();
+        }
+        if (!clickedEvent && !new_event) {
+            clickedEvent = info.event;
+        }
+        update(info);
+    }
+}
+
+
+function handleEventDragStart(info) {
+    if (new_event) {
+        var infoEvent = new Date(info.event.start);
+        var newEvent = new Date(new_event.start);
+
+        if (infoEvent.getTime() !== newEvent.getTime()) {
+            new_event.remove()
+            new_event = '';
+            clickedEvent = info.event;
+        }
+    } else if (!clickedEvent) {
+        clickedEvent = info.event;
+    }
+}
+
+function handleEventResize(info) {
+    if (!info.event.allDay && checkOverlaps(info.event.start, info.event.end).length > 0) {
+        alert("The current event has overlaps");
+        info.revert();
+    } else {
+        if (clickedEvent) {
+            showUndoPopup(info);
+        } else if (new_event && info.event.start.getTime() !== new_event.start.getTime()) {
+            new_event.remove();
+            new_event = '';
+        }
+        else if (!clickedEvent && !new_event) {
+            clickedEvent = info.event;
+            showUndoPopup(info);
+        }
+        update(info);
+    }
+}
+
+function isNewEventWithRecurrence() {
+    if (new_event && recurrent_events && recurrent_events.length > 0) {
+        if (new_event.start.getTime() == info.event.start.getTime() &&
+            new_event.end.getTime() == info.event.end.getTime()) {
+            console.log('the same');
+        } else {
+            recurrent_events = []
+            hideRedCircle();
+        }
+    }
+}
+
+function manipulate() {
+    var calendarEl = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        editable: true,
+        views: {
+            listWeek: { buttonText: 'list1' }
+        },
+        headerToolbar: {
+            start: 'prevYear,prev,next,nextYear',
+            center: 'title',
+            end: 'customSave'
+        },
+
+        customButtons: {
+            customSave: {
+                text: 'Confirm',
+                click: function() {
+                    var allEvents = calendar.getEvents();
+                    allEvents = allEvents.filter(exEvent => exEvent.durationEditable);
+                    console.log('allEvents: ', allEvents);
+                    sendDataToServer(allEvents, chatId);
+                }
+            },
+        },
+
+        events: events,
+
+        eventClick: function(info) {
+            if (new_event && recurrent_events && recurrent_events.length > 0) {
+                if (new_event.start.getTime() == info.event.start.getTime() &&
+                    new_event.end.getTime() == info.event.end.getTime()) {
+                    onEventClick(info);
+                }
+            } else {
+                onEventClick(info);
+            }
+        },
+
+        dateClick: function(info) {
+            if (new_event && recurrent_events && recurrent_events.length > 0) {
+                if (!clickedEvent || new_event.start.getTime() == info.dateStr) {
+                } else {
+                    showDiscardPopup();
+                }
+            } else if (clickedEvent && recurrent_events && recurrent_events.length > 0) {
+                showDiscardPopup();
+            }
+            onDateClick(info, calendar, events);
+        },
+
+        eventResize: function(info) {
+            if (new_event && recurrent_events && recurrent_events.length > 0) {
+                if (new_event.start.getTime() == info.event.start.getTime()) {
+                    console.log('the same');
+                } else {
+                    showDiscardPopup();
+                }
+            }
+            handleEventResize(info);
+        },
+
+        eventDragStart: function(info) {
+            if (new_event && recurrent_events && recurrent_events.length > 0) {
+                if (new_event.start.getTime() == info.event.start.getTime()) {
+                    console.log('the same');
+                } else {
+                    showDiscardPopup();
+                }
+            }
+            handleEventDragStart(info);
+        },
+
+        eventDrop: function(info) {
+            handleEventDrop(info);
+        },
+
+        eventDidMount: function(info) {
+            info.el.setAttribute('data-event-start', info.event.start);
+            info.el.setAttribute('data-event-end', info.event.end);
+        }
+
+    });
+
+    calendar.render();
+
+    calendarEl.addEventListener('contextmenu', function(event) {
+        event.preventDefault(); // Prevent the default context menu
+        let clickedElement = event.target.closest('.fc-event');
+        if (clickedElement) {
+            processClickedElement(calendar, clickedElement);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (tg.initDataUnsafe.user) {
+        chatId = tg.initDataUnsafe.user.id;
+    } else {
+        chatId = '829695735'
+    }
+    var inputChatIdTest = document.getElementById('test-tg-chat-id');
+    get_existing_unavailable_time();
+});
+
+var allCalendarEvents = {}
+
+function createCalendarDays(startTime, endTime, summary, calendar_type, allDay) {
+    if (allCalendarEvents[startTime] &&
+        allCalendarEvents[startTime][0].getTime() == endTime.getTime() &&
+        allCalendarEvents[startTime][1] == summary) {
+        return
+    }
+    var event = {
+        allDay: allDay,
+        title: summary,
+        start: startTime,
+        end: endTime,
+        backgroundColor: 'blue',
+        borderColor: 'blue',
+        editable: false
+    };
+
+    if (calendar_type === 'ghl') {
+        if (summary === 'Do not disturb') {event.editable = true;}
+        event.backgroundColor = 'green'
+        event.borderColor = 'green'
+    }
+
+    if (startTime.getTime() == endTime.getTime()) {
+        event.allDay = true;
+    }
+    let current_event = calendar.addEvent(event);
+
+    allCalendarEvents[startTime] = [endTime, summary];
+}
+
+
+function formatGoogleCalendarDays() {
+    googleCalendarEvents.forEach(function(calendarEvent) {
+        let summary = calendarEvent.summary;
+        let calendar_type = calendarEvent.calendar;
+        let start_time = new Date(calendarEvent.start_time);
+        let end_time = new Date(calendarEvent.end_time);
+        let allDay = calendarEvent.all_day
+        createCalendarDays(start_time, end_time, summary, calendar_type, allDay)
+    })
+}
+
+function get_existing_unavailable_time() {
+    fetch('http://localhost:5000/get_existing_unavailable_time', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            chat_id: chatId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+    if (data.busy_times) {
+        googleCalendarEvents = data.busy_times;
+        console.log(googleCalendarEvents)
+        manipulate();
+        formatGoogleCalendarDays();
+        }
+    })
+    .catch(error => console.error("Error:", error));
+}
+
+function sendDataToServer(allEvents, chatId) {
+    fetch('http://localhost:5000/process_dates', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            dates: allEvents, // Array of selected dates
+            chat_id: chatId // chat_id field
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        tg.close();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        tg.close();
+    });
+}
+
+function processClickedElement(calendar, clickedElement) {
+    function isOldEventFunc(calendarEvent) {
+        var allEvents = calendar.getEvents();
+        return allEvents.some(function(event) {
+            if (new_event) {
+                return event.start.getTime() == calendarEvent.start.getTime() &&
+                event.start.getTime() !== new_event.start.getTime()
+            }
+            return true;
+        })
+    }
+
+    var eventStart = clickedElement.getAttribute('data-event-start');
+    var eventEnd = clickedElement.getAttribute('data-event-end');
+    if (eventStart && eventEnd) {
+        let calendarEvent = getEventByStartAndEnd(calendar, eventStart, eventEnd);
+        if (calendarEvent && calendarEvent.durationEditable) {
+            console.log('calendarEvent: ', calendarEvent)
+            var isOldEvent = isOldEventFunc(calendarEvent);
+            if (isOldEvent) {
+                if (new_event) {
+                    new_event.remove();
+                }
+                hideEventPopup();
+                processContextMenuPopup(clickedElement);
+                clickedCalendarEvent = calendarEvent;
+                clickedEvent = calendarEvent;
+            }
+        }
+    }
+}
+
+
+function processContextMenuPopup(clickedElement) {
+    var rect = clickedElement.getBoundingClientRect()
+    var y = rect.top;
+    var x = rect.left;
+
+    var x_left = x + clickedElement.offsetWidth + 180 <= calendarElement.clientWidth ?
+    x + clickedElement.offsetWidth + 10 : x - clickedElement.offsetWidth - 70;
+    var y_top = y + 150 <= calendarElement.clientHeight ? y : y - 100;
+    if (x_left > 0) {
+        x = x_left;
+    } else {
+        if (x > 145) {
+            x = x - 145
+        } else {
+            y = y - 40;
+        }
+    }
+
+    contextMenuPopup.style.top = `${y}px`;
+    contextMenuPopup.style.left = `${x}px`;
+    showContextMenuPopup();
+}
+
+contextMenuPopup.addEventListener('click', function() {
+    processDeleteEvents();
+    hideContextMenuPopup();
+});
+
+function getEventByStartAndEnd(calendar, start, end) {
+    let allEvents = calendar.getEvents();
+    var start = new Date(start);
+    let matchingEvents = allEvents.filter(event =>
+        event.start.getTime() === start.getTime());
+    return matchingEvents.length > 0 ? matchingEvents[0] : null;
+}
+
+function update(info) {
+    function getDummyAndAdjustedDates(startDate) {
+        var dummyEndDate = getDummyEndDate(startDate, 1);
+        var adjustedEndDate = new Date(startDate);
+        adjustedEndDate.setHours(23, 59, 59, 999);
+        return {dummyEndDate, adjustedEndDate}
+    }
+
+    function handleAllDayBlock(startDate, endDate) {
+        var dummyEndDate = getDummyEndDate(endDate, -1);
+        eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
+        updateEvent(startDate, endDate, isAllDay=true);
+    }
+
+    function handleDefaultDayBlock(startDate, endDate) {
+        let {dummyEndDate, adjustedEndDate} = getDummyAndAdjustedDates(startDate)
+        if (endDate.getTime() === dummyEndDate.getTime()) {
+            updateEvent(startDate, dummyEndDate);
+        } else if (endDate > adjustedEndDate) {
+            // If the end date is after the adjusted end date, revert the resize
+            alert('Events cannot span multiple days.');
+            info.revert();
+        } else {
+            eventStartTime.value = formatAMPM(startDate);
+            eventEndTime.value = formatAMPM(endDate);
+            updateEvent(startDate, endDate);
+        }
+    }
+
+    var startDate = info.event.start;
+    var endDate = info.event.end;
+    if (!endDate && !info.event.allDay) {
+        endDate = increaseDateTime(startDate, 1)
+    }
+
+    if (startDate && endDate) {
+        if (info.event.allDay) {
+            handleAllDayBlock(startDate, endDate);
+        } else {
+            handleDefaultDayBlock(startDate, endDate);
+        }
+    }
+}
+
+function showRecurrencePopup(backdrop) {
+    recurrence_popup.classList.remove('recurrence-box-hidden');
+    recurrence_popup.classList.add('recurrence-box');
+    backdrop.style.display = 'block';
+    elementsToEnable = [repeatEveryType, repeatEveryInput, recurrenceCancelButton, recurrenceDoneButton]
+    var redCircle = document.getElementById('red-circle');
+
+    function resetRecurrencePopup() {
+        resetRepeatOn(days);
+        repeatEveryInput.value = 1;
+        if (repeatEveryType.value !== 'week'){
+            parentElement = addDaysOfWeek(parentElement);
+            repeatEveryType.value = 'week';
+            days = document.querySelectorAll('.day');
+            repeatOnResponse(days);
+        };
+        radioEndsNever.checked = true;
+    }
+
+    function showSetPopup() {
+        if (radioEndsOn.checked === true) {
+            elementsToEnable.push(inputEndsOn)
+        } else if (radioEndsAfter.checked === true) {
+            elementsToEnable.push(inputEndsAfter)
+        }
+    }
+
+    if (redCircle.style.display === 'none') {
+        resetRecurrencePopup();
+    } else {
+        showSetPopup();
+    }
+    elementsToEnable.forEach(element => element.disabled = false);
+}
+
+function closeRecurrencePopup(backdrop) {
+    recurrence_popup.classList.remove('recurrence-box');
+    recurrence_popup.classList.add('recurrence-box-hidden');
+    backdrop.style.display = 'none';
+    elementsToDisable = [repeatEveryType, repeatEveryInput, recurrenceCancelButton, recurrenceDoneButton, inputEndsAfter,
+    inputEndsOn]
+    elementsToDisable.forEach(element => element.disabled = true);
+}
+
+function recurrencePopupProcess(backdrop) {
+    var top = calendarElement.clientHeight/2;
+    var left = calendarElement.clientWidth/2 - 200;
+
+    // Position the popup and show it
+    recurrence_popup.style.top = `${top}px`;
+    recurrence_popup.style.left = `${left}px`;
+    recurrence_popup.style.zIndex = `200`;
+    showRecurrencePopup(backdrop);
+}
+
+function toggleActiveClass(event) {
+    event.target.classList.toggle('active');
+    repeatOnMonth = event.target.id;
+}
+
+function repeatOnResponse(days){
+    if (days) {
+        Array.from(days).forEach(function(day) {
+            day.addEventListener('click', toggleActiveClass);
+        });
+    }
+}
+
+function resetRepeatOn(days) {
+    Array.from(days).forEach(function(day) {
+        if (day.id === '1') {
+            day.classList.add('active');
+        } else {
+            day.classList.remove('active');
+        }
+    });
+}
+
+function getActiveDays(days) {
+    const activeDays = Array.from(days).map(element => element.id);
+    return activeDays;
+}
+
+function getFirstDayOfWeek(date) {
+    const day = date.getDay(); // Get current day of the week (0-6, Sunday to Saturday)
+    const firstDay = new Date(date); // Copy the date to avoid mutating the original date
+    firstDay.setDate(date.getDate() - day); // Subtract the day number to get to Sunday
+    return firstDay;
+}
+
+function convertDateFormat(dateString) {
+    const months = {
+        January: 0, February: 1, March: 2, April: 3, May: 4, June: 5, July: 6, August: 7, September: 8, October: 9,
+        November: 10, December: 11
+    };
+    const parts = dateString.split(' ');
+    const month = months[parts[0]];
+    const day = parseInt(parts[1].replace(',', ''), 10);
+    const year = parseInt(parts[2], 10);
+
+    const date = new Date(year, month, day);
+    return date.toString();
+}
+
+function setTimeLimit(startTime, limitTime, timeType) {
+    const startDate = new Date(startTime);
+    var endDate = new Date(startTime);
+    if (limitTime.includes('occurrences')) {
+        endDate = '';
+    } else if (limitTime) {
+        endDate = convertDateFormat(limitTime);
+    } else {
+        if (timeType == 'day'){
+            var years = 2
+        } else if (timeType == 'month' || timeType == 'years') {
+            var years = 20
+        } else if (timeType == 'week') {
+            var years = 5
+        }
+        endDate.setFullYear(startDate.getFullYear() + years);
+    }
+    const events = [];
+    const dayMilliseconds = 24 * 60 * 60 * 1000;
+    let currentDate = new Date(startDate);
+    return { currentDate, startDate, endDate, dayMilliseconds, events };
+}
+
+function getEndEventTime(endEventTime, endTime) {
+    var flag = isEventAllDayBlock()
+    if (!flag) {
+        endEventTime.setHours(endTime.getHours(), endTime.getMinutes());
+    }
+    return endEventTime
+}
+
+function createNewEvent(currentDate, startDate, endTime, events) {
+    const startEventTime = new Date(currentDate);
+    startEventTime.setHours(startDate.getHours(), startDate.getMinutes());
+
+    if (!endTime) {
+        endEventTime = new Date(startEventTime);
+        var event = [startEventTime, endEventTime, true]
+    } else {
+        var endEventTime = new Date(currentDate);
+        var endEventTime = getEndEventTime(endEventTime, endTime)
+        var event = [startEventTime, endEventTime]
+    }
+    events.push(event);
+
+    return events
+}
+
+function getWeekEventDates(skipNumber, includeDays, currentDate, startDate, endTime, dayMilliseconds, events) {
+    let weekStartDate = getFirstDayOfWeek(currentDate)
+    let currentDatePointer = new Date(weekStartDate.getTime());
+    for (let counter = 0; counter < 7; counter++) {
+        if (includeDays.includes(currentDatePointer.getDay().toString())) {
+            events = createNewEvent(currentDatePointer, startDate, endTime, events);
+        }
+        currentDatePointer = new Date(currentDatePointer.getTime() + dayMilliseconds);
+    }
+    currentDate = new Date(currentDate.getTime() + dayMilliseconds * 7 * skipNumber);
+
+    return currentDate
+}
+
+function getEventDates(timeType, skipNumber, currentDate, startDate, endTime, dayMilliseconds, events) {
+    switch (timeType) {
+        case 'day':
+            currentDate = new Date(currentDate.getTime() + dayMilliseconds * skipNumber);
+            break;
+        case 'month':
+            currentDate.setMonth(currentDate.getMonth() + Number(skipNumber));
+            break;
+        case 'year':
+            currentDate.setFullYear(currentDate.getFullYear() + Number(skipNumber));
+            break;
+    }
+    events = createNewEvent(currentDate, startDate, endTime, events);
+    return currentDate
+}
+
+function generateEventDates(skipNumber, timeType, startTime, endTime, limitTime, includeDays='') {
+    var {currentDate, startDate, endDate, dayMilliseconds, events} = setTimeLimit(startTime, limitTime, timeType)
+
+    if (endDate) {
+        endDate = new Date(endDate);
+        while (currentDate.getTime() < endDate.getTime()) {
+            if (includeDays) {
+                currentDate = getWeekEventDates(skipNumber, includeDays, currentDate, startDate, endTime, dayMilliseconds, events);
+            } else {
+                currentDate = getEventDates(timeType, skipNumber, currentDate, startDate, endTime, dayMilliseconds, events);
+            }
+        }
+    } else {
+        const number = parseInt(limitTime, 10);
+        for (let counter = 0; counter < number; counter++) {
+            if (includeDays) {
+                currentDate = getWeekEventDates(skipNumber, includeDays, currentDate, startDate, endTime, dayMilliseconds, events);
+            } else {
+                currentDate = getEventDates(timeType, skipNumber, currentDate, startDate, endTime, dayMilliseconds, events);
+            }
+        }
+    }
+    return events;
+}
+
+function removeDaysOfWeek(element) {
+    if (element) {
+        element.remove();
+    }
+}
+
+function addDaysOfWeek(parentElement) {
+    var daysOfWeekHtml = `
+        <label id="label-days-of-week">Repeat on</label>
+        <div class="days-of-week">
+            <div id="0" class="day">S</div>
+            <div id="1" class="day active">M</div>
+            <div id="2" class="day">T</div>
+            <div id="3" class="day">W</div>
+            <div id="4" class="day">T</div>
+            <div id="5" class="day">F</div>
+            <div id="6" class="day">S</div>
+        </div>
+    `;
+    var container = document.createElement("div");
+    container.innerHTML = daysOfWeekHtml;
+    parentElement.appendChild(container);
+    return parentElement;
+}
+
+window.addEventListener('dateSelected', function(e) {
+    const selectedDate = e.detail.date;
+    if (document.activeElement === eventDate) {
+        eventDate.value = formatDateToUserFriendly(selectedDate);
+        eventDate.blur();
+    } else if (document.activeElement === eventDateEnd) {
+        eventDateEnd.value = formatDateToUserFriendly(selectedDate);
+        eventDateEnd.blur();
+    } else if (document.activeElement === inputEndsOn) {
+        new_ends_on = selectedDate;
+        inputEndsOn.value = formatDateToUserFriendly(selectedDate);
+        inputEndsOn.blur();
+    }
+})
+
+function updateEvent(newStartTime, newEndTime, isAllDay=false) {
+    var event = {
+        title: 'Do not disturb',
+        start: newStartTime,
+        end: newEndTime,
+        backgroundColor: 'green',
+        borderColor: 'green',
+        durationEditable: true,
+    }
+    if (isAllDay) {
+        event.allDay = true
+    }
+
+    if (new_event) {
+        new_event.remove();
+        new_event = calendar.addEvent(event);
+        let intersectEvent = new_event;
+    } else if (clickedEvent) {
+        oldClickedEvent = clickedEvent
+        clickedEvent.remove();
+        clickedEvent = calendar.addEvent(event);
+        let intersectEvent = clickedEvent;
+    }
+    return newStartTime;
+}
+
+function concatenateDateTime(dateString, timeString) {
+    // Convert the date string into a Date object
+    var date = new Date(dateString);
+
+    // Extract hours and minutes from the time string
+    var timeParts = timeString.match(/(\d+):(\d+)(am|pm)/);
+    var hours = parseInt(timeParts[1], 10);
+    var minutes = parseInt(timeParts[2], 10);
+
+    // Convert hours to 24-hour format if needed
+    if (timeParts[3] === "pm" && hours < 12) {
+        hours += 12;
+    } else if (timeParts[3] === "am" && hours === 12) {
+        hours = 0;
+    }
+    // Set the hours and minutes to the date
+    date.setHours(hours, minutes);
+    return date;
+}
+
+function isValidTimeFormat(inputString) {
+    // Regular expression to match the format "HH:MMam" or "HH:MMpm"
+    var regex = /^(1[0-2]|0?[1-9]):([0-5][0-9])([ap]m)$/i;
+    return regex.test(inputString);
+}
+
+function isValidDateFormat(inputString) {
+    // Regular expression to match the format "Month DD, YYYY"
+    var regex = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{1,2},\s\d{4}$/;
+    if (!regex.test(inputString)) {
+        return false; // Does not match the format
+    }
+    var date = new Date(inputString);
+    if (isNaN(date.getTime())) {
+        return false; // Not a valid date
+    }
+    var parts = inputString.split(/[\s,]+/);
+    var month = parts[0];
+    var day = parseInt(parts[1], 10);
+    var year = parseInt(parts[2], 10);
+    var reconstructedDateString = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return reconstructedDateString === `${month} ${day}, ${year}`;
+}
+
+function isTimeLessThan(firstInput, secondInput) {
+    // Convert time to 24-hour format, correctly handling inputs without a space before am/pm
+    function convertTo24Hour(timeStr) {
+        // Adjusting to capture the modifier directly connected to the time
+        let [time, modifier] = timeStr.match(/(\d+:\d+)(am|pm)/i).slice(1);
+        let [hours, minutes] = time.split(':');
+
+        if (hours === '12') {
+            hours = '00';
+        }
+
+        if (modifier.toLowerCase() === 'pm') {
+            hours = parseInt(hours, 10) + 12;
+        }
+
+        return parseInt(hours) * 60 + parseInt(minutes);
+    }
+
+    if (secondInput === '12:00am' && firstInput !== '12:00am') {
+        return true
+    }
+    const firstTime = convertTo24Hour(firstInput);
+    const secondTime = convertTo24Hour(secondInput);
+
+    // Compare the two times
+    return firstTime < secondTime;
+}
+
+function getTodayDate() {
+    var today = new Date();
+    var dateString = today.toDateString(); // "Wed Feb 28 2024"
+    var midnight = "00:00:00";
+    var timezoneOffset = -today.getTimezoneOffset() / 60;
+    var timezone = "GMT" + (timezoneOffset >= 0 ? "+" : "") + timezoneOffset.toString().padStart(2, '0') + "00";
+    var fullDateString = `${dateString} ${midnight} ${timezone} (Eastern European Standard Time)`;
+    return fullDateString;
+}
+
+function showUndoPopup(info) {
+    setTimeout(function() {
+        if (info == 'save') {
+            undoPopupText.textContent = 'Event saved';
+        } else if (info == 'delete') {
+            undoPopupText.textContent = 'Event deleted';
+        } else {
+            undoPopupText.textContent = 'Event updated';
+        }
+    }, 200);
+    newInfo = info;
+
+    function resetAndShowPopup() {
+        clearTimeout(hidePopupTimeout);
+        clearTimeout(showPopupDelayTimeout);
+
+        var left = window.innerWidth / 2 - 50;
+        var top = window.innerHeight - 70;
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+        popup.style.display = 'block';
+        popup.style.opacity = '1';
+
+        hidePopupTimeout = setTimeout(function() {
+            hideUndoPopup();
+        }, 10000);
+    }
+
+    if (hidePopupTimeout) {
+        hideUndoPopup();
+        showPopupDelayTimeout = setTimeout(function() {
+            resetAndShowPopup();
+        }, 200);
+    } else {
+        resetAndShowPopup();
+    }
+}
+
+function hideUndoPopup() {
+    var top = calendarElement.clientHeight - 20;
+    popup.style.top = `${top}px`;
+    popup.style.opacity = '0';
+    setTimeout(function() {
+        popup.style.display = 'none';
+    }, 200);
+
+}
+
+function removeClickedEvent() {
+    if (clickedEvent && new_event) {
+        console.log('there is clicked and new events')
+    } else if (clickedEvent) {
+        clickedEvent.remove();
+        clickedEvent = '';
+    }
+}
+
+function handleSave() {
+    removeClickedEvent();
+    changed_events.forEach(function(changed_event) {
+        if (changed_event) {
+            changed_event.remove();
+        }
+    })
+    hideEventPopup();
+}
+
+function handleDelete() {
+    function areObjectsEqual(obj1, obj2) {
+        // Assuming we're only comparing specific properties, not methods
+        const keys1 = Object.keys(obj1);
+        const keys2 = Object.keys(obj2);
+
+        // Quick property length check
+        if (keys1.length !== keys2.length) return false;
+
+        // Check each property's value
+        for (const key of keys1) {
+            if (obj1[key] !== obj2[key]) return false;
+        }
+
+        return true;
+    }
+
+    function areSublistsEqual(sublist1, sublist2) {
+        if (sublist1.length !== sublist2.length) return false;
+
+        for (let i = 0; i < sublist1.length; i++) {
+            if (!areObjectsEqual(sublist1[i], sublist2[i])) return false;
+        }
+
+        return true;
+    }
+
+    function removeDuplicateSublists(listOfSublists) {
+        return listOfSublists.reduce((acc, currentSublist) => {
+            const duplicateFound = acc.some(sublist => areSublistsEqual(sublist, currentSublist));
+            if (!duplicateFound) acc.push(currentSublist);
+            return acc;
+        }, []);
+    }
+
+    function updateSublist(allChangedElements, changed_elements) {
+      // Convert the input list to a Set for efficient element existence checks
+      const changedElementsSet = new Set(changed_elements);
+
+      // Find the index of the sublist to be updated
+      const indexToUpdate = allChangedElements.findIndex(sublist =>
+        sublist.every(element => changedElementsSet.has(element)) &&
+        sublist.length < changed_elements.length
+      );
+
+      // If a matching sublist is found, replace it with the new list
+      if (indexToUpdate !== -1) {
+            allChangedElements[indexToUpdate] = changed_elements;
+      }
+
+      return allChangedElements;
+    }
+
+    if (clickedEvent) {
+        changed_events.push(clickedEvent);
+    }
+    changed_events.forEach(function(changed_event) {
+        calendar.addEvent(changed_event);
+    })
+    updateSublist(allChangedEvents, changed_events);
+    allChangedEvents.push(changed_events);
+    allChangedEvents = removeDuplicateSublists(allChangedEvents);
+    hideEventPopup();
+}
+
+document.getElementById('undoButton').addEventListener('click', function() {
+    function handleUpdate() {
+        clickedEvent.remove();
+        calendar.addEvent(oldClickedEvent);
+        calendar.gotoDate(oldClickedEvent.start);
+        clickedEvent = '';
+        oldClickedEvent = '';
+        hideEventPopup();
+    }
+
+    function handleRevert() {
+        removeClickedEvent();
+        newInfo.revert();
+        hideEventPopup();
+    }
+
+    hideContextMenuPopup();
+    if (newInfo == 'save') {
+        handleSave();
+    } else if (newInfo == 'delete') {
+        handleDelete();
+    } else if (newInfo == 'update') {
+        handleUpdate();
+    } else {
+        handleRevert();
+    }
+    if (recurrent_events && recurrent_events.length > 0) {
+        showDiscardPopup();
+    } else {
+        hideUndoPopup();
+        if (new_event) {
+            new_event.remove();
+            new_event = '';
+        }
+    }
+});
+
+document.getElementById('closePopup').addEventListener('click', function() {
+    hideUndoPopup();
+});
+
+function showRedCircle() {
+    var redCircle = document.getElementById('red-circle');
+    redCircle.style.display = 'block';
+}
+
+function hideRedCircle() {
+    var redCircle = document.getElementById('red-circle');
+    redCircle.style.display = 'none';
+}
+
+function getEventStartEndTimes() {
+    if (new_event) {
+        var startTime = new Date(new_event.start);
+        var endTime = new_event.end;
+    } else if (clickedEvent) {
+        var startTime = new Date(clickedEvent.start);
+        var endTime = new Date(clickedEvent.end);
+    }
+    return {startTime, endTime}
+}
+
+function getLimitTime() {
+    if (radioEndsOn.checked) {
+        limitTime = inputEndsOn.value;
+    } else if (radioEndsAfter.checked) {
+        limitTime = inputEndsAfter.value + ' occurrences';
+    } else {
+        limitTime = '';
+    }
+    return limitTime;
+}
+
+function getRecurrentEvents() {
+    var timeType = repeatEveryType.value;
+    var skipNumber = repeatEveryInput.value;
+    const {startTime, endTime} = getEventStartEndTimes();
+    const limitTime = getLimitTime();
+
+    if (timeType == 'week') {
+        var activeDays = document.querySelectorAll('.day.active');
+        var includeDays = getActiveDays(activeDays);
+        recurrent_events = generateEventDates(skipNumber, timeType, startTime, endTime, limitTime, includeDays);
+    } else {
+        recurrent_events = generateEventDates(skipNumber, timeType, startTime, endTime, limitTime)
+    }
+    console.log("Events: ", recurrent_events.slice(0, 10));
+}
+
+[repeatEveryInput, inputEndsAfter].forEach(function(element) {
+  element.addEventListener('input', function() {
+    var value = parseInt(this.value, 10);
+    if (value < 1) {
+      this.value = 1;
+    } else if (value > 99) {
+      this.value = 99;
+    }
+  });
+});
+
+function handleElementFocus(element) {
+    var rect = element.getBoundingClientRect()
+    var top = rect.top - 100;
+    var left = rect.left - 115;
+    customCalendarPopup.style.top = `${top + element.offsetHeight}px`;
+    customCalendarPopup.style.left = `${left}px`;
+    customCalendarPopup.classList.remove('hidden');
+}
+
+inputEndsOn.addEventListener('focus', function() {
+     handleElementFocus(inputEndsOn);
+})
+
+inputEndsOn.addEventListener('blur', function() {
+    customCalendarPopup.classList.add('hidden');
+    var is_date_valid = isValidDateFormat(inputEndsOn.value);
+    if (!is_date_valid) {
+        inputEndsOn.value = formatDateToUserFriendly(new_ends_on)
+    }
+})
+
+function updateDisabledStates() {
+    inputEndsOn.disabled = !radioEndsOn.checked;
+    inputEndsAfter.disabled = !radioEndsAfter.checked;
+}
+
+[radioEndsNever, radioEndsOn, radioEndsAfter].forEach(radio => {
+    radio.addEventListener('change', updateDisabledStates);
+});
+
+repeatEveryType.addEventListener('change', function() {
+    function handleRepeatEveryWeek() {
+        parentElement = addDaysOfWeek(parentElement);
+        days = document.querySelectorAll('.day');
+        repeatOnResponse(days);
+    }
+
+    function handleRepeatAllExceptFromWeek() {
+        var daysElem = document.querySelector(".days-of-week");
+        var labelDays = document.getElementById("label-days-of-week");
+        if (daysElem && labelDays){
+            daysElem.remove();
+            labelDays.remove();
+        }
+    }
+
+    if (repeatEveryType.value == 'week') {
+        handleRepeatEveryWeek();
+    } else {
+        handleRepeatAllExceptFromWeek();
+    }
+})
+
+backdrop.onclick = function(event) {
+  if (event.target === backdrop) {
+    closeRecurrencePopup(backdrop);
+    hideDiscardPopup();
+    hideDeleteRecurringEventPopup();
+  }
+}
+
+recurrenceCancelButton.onclick = function() {
+    changed_events = [];
+    recurrent_events = [];
+    closeRecurrencePopup(backdrop);
+    hideRedCircle();
+    console.log(recurrent_events);
+}
+
+recurrenceDoneButton.onclick = function() {
+    getRecurrentEvents();
+    toggleMoreSaveButtons();
+    closeRecurrencePopup(backdrop);
+    // Disable calendar editability
+//    if (recurrent_events && recurrent_events.length > 0) {
+//        calendar.setOption('editable', false);
+//        if (new_event) {
+//            new_event.editable = true;
+//        } else if (clickedEvent) {
+//            clickedEvent.editable = true;
+//        }
+//    }
+
+}
+
+eventDate.addEventListener('focus', function() {
+    handleElementFocus(eventDate);
+})
+
+eventDateEnd.addEventListener('focus', function() {
+    handleElementFocus(eventDateEnd);
+})
+
+function isEventAllDayBlock() {
+    if (new_event) {
+        if (new_event.allDay) {
+            return true
+        }
+    } else if (clickedEvent) {
+        if (clickedEvent.allDay) {
+            return true
+        }
+    }
+    return false
+}
+
+function getEventNewStartEndTime() {
+    var newDate = new Date(convertDateFormat(eventDate.value));
+    var newStartTime = concatenateDateTime(newDate, eventStartTime.value);
+    var newEndTime = concatenateDateTime(newDate, eventEndTime.value);
+
+    if (eventEndTime.value === '12:00am') {
+        if (newStartTime > newEndTime) {
+            var newEndTime = concatenateDateTime(newDate, '11:59pm');
+        }
+    }
+
+    return {newStartTime, newEndTime}
+}
+
+function handleUpdateEvent() {
+    if (new_event) {
+        var oldStartTime = new_event.start;
+        var oldEndTime = new_event.end;
+    } else if (clickedEvent) {
+        var oldStartTime = clickedEvent.start;
+        var oldEndTime = clickedEvent.end;
+    }
+
+    let {newStartTime, newEndTime} = getEventNewStartEndTime()
+    if (oldStartTime.getTime() !== newStartTime.getTime() || oldEndTime.getTime() !== newEndTime.getTime()) {
+        var newSTime = updateEvent(newStartTime, newEndTime)
+        if (clickedEvent) {
+            showUndoPopup("update");
+        }
+        return newSTime
+    }
+}
+
+function adjustWidth(inputElement) {
+    // Create a temporary span to measure text width
+    var span = document.createElement('span');
+    span.style.visibility = 'hidden'; // Make span invisible
+    span.style.position = 'absolute'; // Remove from flow
+    span.style.height = 'auto';
+    span.style.width = 'auto';
+    span.style.whiteSpace = 'nowrap'; // Prevent line breaks
+    span.innerText = inputElement.value || inputElement.placeholder;
+
+    // Append to body to measure
+    document.body.appendChild(span);
+
+    // Set input width based on span width, then remove span
+    inputElement.style.width = (span.offsetWidth - 5) + 'px'; // +20 for padding/border
+
+    document.body.removeChild(span);
+}
+
+function handleUpdateAllDayEvent() {
+    if (new_event) {
+        var oldStartDate = new_event.start;
+        var oldEndDate = new_event.end;
+    } else if (clickedEvent) {
+        var oldStartDate = clickedEvent.start;
+        var oldEndDate = clickedEvent.end;
+    }
+    if (oldEndDate) {
+        oldEndDate = getDummyEndDate(oldEndDate, -1);
+    } else {
+        oldEndDate = new Date(oldStartDate);
+    }
+    var newStartDate = new Date(convertDateFormat(eventDate.value));
+    var newEndDate = new Date(convertDateFormat(eventDateEnd.value));
+    if (oldStartDate.getTime() !== newStartDate.getTime() || oldEndDate.getTime() !== newEndDate.getTime()) {
+        if (newStartDate.getTime() <= newEndDate.getTime()) {
+            var newEndDate = getDummyEndDate(newEndDate, 1);
+            var newSTime = updateEvent(newStartDate, newEndDate, true)
+            if (clickedEvent) {
+                showUndoPopup("update");
+            }
+            return newSTime
+        } else {
+            eventDate.value = formatDateToUserFriendly(oldStartDate);
+            eventDateEnd.value = formatDateToUserFriendly(oldEndDate);
+        }
+    }
+}
+
+function checkIntersectionsFromInputFields() {
+    console.log('eventStartTime.value: ', eventStartTime.value)
+    var newDate = new Date(convertDateFormat(eventDate.value));
+    var newStartTime = concatenateDateTime(newDate, eventStartTime.value);
+    var newEndTime = concatenateDateTime(newDate, eventEndTime.value);
+    return checkOverlaps(newStartTime, newEndTime).length > 0
+}
+
+eventDate.addEventListener('blur', function() {
+    function revertEventTime(){
+        if (new_event) {
+            eventDate.value = formatDateToUserFriendly(new_event.start)
+        } else if (clickedEvent) {
+            eventDate.value = formatDateToUserFriendly(clickedEvent.start)
+        }
+        adjustWidth(eventDate);
+        adjustWidth(eventDateEnd);
+        console.log('invalid date format!')
+    }
+
+    adjustWidth(eventDate);
+    customCalendarPopup.classList.add('hidden');
+    var event = getEvent();
+    var is_date_valid = isValidDateFormat(eventDate.value);
+    if (is_date_valid) {
+        if (!event.allDay && checkIntersectionsFromInputFields()) {
+            alert("The current event has overlaps");
+            revertEventTime();
+        } else {
+            var flag = isEventAllDayBlock();
+            if (!flag) {
+                newSTime = handleUpdateEvent();
+                if (!newSTime) {
+                    newSTime = new Date(eventDate.value);
+                }
+                calendar.gotoDate(newSTime);
+            } else {
+                handleUpdateAllDayEvent();
+            }
+        }
+    } else {
+        revertEventTime();
+    }
+});
+
+eventDateEnd.addEventListener('blur', function() {
+    adjustWidth(eventDateEnd);
+    customCalendarPopup.classList.add('hidden');
+    var is_date_valid = isValidDateFormat(eventDateEnd.value);
+    if (is_date_valid) {
+        var flag = isEventAllDayBlock();
+        if (!flag) {
+            var newSTime = handleUpdateEvent();
+            if (!newSTime) {
+                var newSTime = new Date(eventDateEnd.value);
+            }
+        } else {
+            handleUpdateAllDayEvent();
+        }
+    } else {
+        if (new_event) {
+            if (new_event.end) {
+                eventDateEnd.value = formatDateToUserFriendly(new_event.end)
+            } else {
+                eventDateEnd.value = formatDateToUserFriendly(new_event.start)
+            }
+        } else if (clickedEvent) {
+            if (clickedEvent.end) {
+                eventDateEnd.value = formatDateToUserFriendly(clickedEvent.end)
+            } else {
+                eventDateEnd.value = formatDateToUserFriendly(clickedEvent.start)
+            }
+        }
+        adjustWidth(eventDate);
+        adjustWidth(eventDateEnd);
+        console.log('invalid date format!')
+    }
+});
+
+function resetDateTimes() {
+    if (clickedEvent) {
+        var event = clickedEvent;
+    } else if (new_event) {
+        var event = new_event;
+    }
+    eventDate.value = formatDateToUserFriendly(event.start.toDateString());
+    eventStartTime.value = formatAMPM(event.start);
+
+    if (event.end) {
+        var showNextDays = event.allDay ? -1 : 0;
+        var dummyEndDate = getDummyEndDate(event.end, showNextDays);
+        eventEndTime.value = formatAMPM(event.end);
+    } else {
+        var dummyEndDate = event.start
+    }
+
+    eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
+}
+
+function updateEventFormInputElement(inputElement){
+    function updateInputElFromNewEvent(inputElement) {
+        if (inputElement == eventStartTime) {
+            inputElement.value = formatAMPM(new_event.start);
+        } else if (inputElement == eventEndTime) {
+            inputElement.value = formatAMPM(new_event.end);
+        }
+    }
+
+    function updateInputElFromClickedEvent(inputElement) {
+        if (inputElement == eventStartTime) {
+            inputElement.value = formatAMPM(clickedEvent.start);
+        } else if (inputElement == eventEndTime) {
+            inputElement.value = formatAMPM(clickedEvent.end);
+        }
+    }
+
+    var flag = isValidTimeFormat(inputElement.value)
+    flag = flag === true ? isTimeLessThan(eventStartTime.value, eventEndTime.value) : false;
+
+    if (flag) {
+        let {newStartTime, newEndTime} = getEventNewStartEndTime()
+        if (checkOverlaps(newStartTime, newEndTime).length > 1) {
+           alert("The event cannot overlap with existing ones");
+           resetDateTimes();
+        } else {
+            newSTime = handleUpdateEvent();
+            return newSTime;
+        }
+    } else {
+        if (new_event) {
+            updateInputElFromNewEvent(inputElement);
+        } else if (clickedEvent) {
+            updateInputElFromClickedEvent(inputElement);
+        }
+        console.log('invalid date format!')
+    }
+}
+
+eventStartTime.addEventListener('blur', function() {
+    updateEventFormInputElement(eventStartTime);
+});
+
+eventEndTime.addEventListener('blur', function() {
+    updateEventFormInputElement(eventEndTime);
+});
+
+function datesEqual(a, b) {
+    return a.getTime() === b.getTime();
+}
+
+function recurrentDateBigger(a, b) {
+    return a.getTime() > b.getTime();
+}
+
+function clearAndCloseEventPopup() {
+    showUndoPopup('save');
+    hideEventPopup();
+    clickedEvent = new_event;
+    new_event = '';
+    recurrent_events = [];
+    hideRedCircle();
+}
+
+function getEvent() {
+    if (clickedEvent) {
+        var event = clickedEvent;
+    } else if (new_event) {
+        var event = new_event;
+    }
+    return event;
+}
+
+function createRecurrentEvents(existingEvents) {
+    function getEventStartEnd(event) {
+        var eventStart = new Date(event.start);
+        var eventEnd = new Date(event.end);
+        return {eventStart, eventEnd}
+    }
+
+    function isExistingDefaultEventFunc(event, start, end) {
+        const {eventStart, eventEnd} = getEventStartEnd(event);
+        return start.getTime() >= eventStart.getTime() && end.getTime() <= eventEnd.getTime();
+    }
+
+    function removeExistingEvent(event, start, end) {
+        const {eventStart, eventEnd} = getEventStartEnd(event);
+        return event.durationEditable && event.title === 'Do not disturb' &&
+               start.getTime() <= eventStart.getTime() &&
+               end.getTime() >= eventEnd.getTime();
+    }
+
+    function isExistingAllDayEventFunc(event, start) {
+        var eventStart = new Date(event.start);
+        return datesEqual(eventStart, start);
+    }
+
+    function recurrentDateBigger(a, b) {
+        return a.getTime() >= b.getTime();
+    }
+
+    function getStartEvent() {
+        let event = getEvent()
+        var startEvent = new Date(event.start);
+        return startEvent;
+    }
+
+    function handleCreateRecurrentEvent(recStart, recEnd) {
+        recurrent_event = {
+            title: 'Do not disturb',
+            start: recStart,
+            end: recEnd,
+            backgroundColor: 'green',
+            borderColor: 'green',
+            durationEditable: true,
+        };
+
+        if (new_event) {
+            if (new_event.allDay) {
+                recurrent_event.allDay = true;
+            }
+        } else if (clickedEvent) {
+            if (clickedEvent.allDay) {
+                recurrent_event.allDay = true;
+            }
+        }
+
+        var new_recurrent_event = calendar.addEvent(recurrent_event);
+        changed_events.push(new_recurrent_event);
+    }
+
+    function isExistingEventFunc(element) {
+        var isExistingEvent = existingEvents.some(function(event) {
+            let newStart = element[0]
+            let newEnd = element[1]
+            if (removeExistingEvent(event, newStart, newEnd)) {
+                event.remove()
+            }
+            if (event.allDay) {
+                if (element.length === 3) {
+                    return isExistingAllDayEventFunc(event, newStart)
+                } else {
+                    return isExistingDefaultEventFunc(event, newStart, newEnd);
+                }
+            } else {
+                return isExistingDefaultEventFunc(event, newStart, newEnd);
+            }
+        });
+        return isExistingEvent
+    }
+
+    function extendRecurrentEventFunc(element) {
+        let recStart = new Date(element[0]);
+        let recEnd = new Date(element[1]);
+        existingEvents.forEach(function(existingEvent) {
+            const {eventStart, eventEnd} = getEventStartEnd(event);
+            if (event.title === 'Do not disturb' &&
+                start.getTime() > eventStart.getTime() &&
+                end.getTime() >= eventEnd.getTime()) {
+                return eventStart;
+            }
+            let newRecEnd = extendRecurrentEventEnd(existingEvent, recStart, recEnd);
+            if (newRecStart || newRecEnd) {
+                if (newRecStart) {recStart = newRecStart, console.log('newRecStart: ', newRecStart);};
+                if (newRecEnd) {recEnd = newRecEnd, console.log('newRecEnd: ', newRecEnd);};
+                return
+            }
+        })
+        return { recStart, recEnd };
+    }
+
+    function processCreateRecurrentEvents(element) {
+        let recurrentEvent = {startTime: element[0], endTime: element[1]}
+        let intersectEvents = filterIntersectingRanges(recurrentEvent, existingEvents)
+        let subtractEvents = subtractTimeRanges(recurrentEvent, intersectEvents)
+        subtractEvents.forEach(function(subtractEvent) {
+            let recStart = new Date(subtractEvent.start)
+            let recEnd = new Date(subtractEvent.end)
+            handleCreateRecurrentEvent(recStart, recEnd);
+        })
+    }
+
+    var startEvent = getStartEvent();
+    getRecurrentEvents();
+    console.log("recurrent_events: ", recurrent_events)
+    var event = getEvent()
+    console.log('event: ', event)
+    recurrent_events.forEach(function(element) {
+        var isExistingEvent = isExistingEventFunc(element);
+        var isBiggerThenStartEvent = recurrentDateBigger(element[0], startEvent)
+        if (isExistingEvent || !isBiggerThenStartEvent) {
+            console.log("An event already exists or it is less then start event.");
+        } else {
+            if (event.allDay) {
+                handleCreateRecurrentEvent(element[0], element[1]);
+            } else {
+                processCreateRecurrentEvents(element);
+            }
+        }
+    })
+    var event = getEvent();
+    changed_events.push(event);
+    allChangedEvents.push(changed_events);
+}
+
+function filterIntersectingRanges(recurrentEvent, allEvents) {
+    const largeStart = new Date(recurrentEvent.startTime).getTime();
+    const largeEnd = new Date(recurrentEvent.endTime).getTime();
+    const intersectingRanges = allEvents.filter(range => {
+        const smallStart = new Date(range.start).getTime();
+        const smallEnd = new Date(range.end).getTime();
+
+        return !range.durationEditable && smallStart < largeEnd && smallEnd > largeStart && largeStart !== smallStart ||
+                !range.durationEditable && smallStart < largeEnd && smallEnd > largeStart && largeEnd !== smallEnd;
+    });
+
+    return intersectingRanges;
+}
+
+function subtractTimeRanges(largeRange, smallRanges) {
+    // Convert start and end times of large range to Date objects
+    let currentStart = new Date(largeRange.startTime);
+    const end = new Date(largeRange.endTime);
+
+    // Prepare an array to hold the resulting time ranges
+    const resultingRanges = [];
+
+    // Function to add a minute to a Date object
+    const addMinute = (date) => new Date(date.getTime() + 60000);
+
+    // Function to subtract a minute from a Date object
+    const subtractMinute = (date) => new Date(date.getTime() - 60000);
+
+    smallRanges.forEach((range) => {
+        const start = new Date(range.start);
+        const end = new Date(range.end);
+
+        // Check if the current start time is before the small range's start time
+        if (currentStart < start) {
+            // Add the range from currentStart to one minute before the small range's start
+            resultingRanges.push({
+                start: currentStart,
+                end: subtractMinute(start),
+            });
+        }
+
+        // Update the current start to be one minute after the small range's end
+        currentStart = addMinute(end);
+    });
+
+    // After processing all small ranges, check if there's remaining time in the large range
+    if (currentStart < end) {
+        resultingRanges.push({
+            start: currentStart,
+            end: end,
+        });
+    }
+
+    // Adjust the last range if it extends beyond the large range's end time
+    const lastRange = resultingRanges[resultingRanges.length - 1];
+    if (lastRange && lastRange.end > end) {
+        lastRange.end = end;
+    }
+
+    // Convert the Date objects back to strings if necessary
+    return resultingRanges.map(range => ({
+        start: range.start.toString(),
+        end: range.end.toString(),
+    }));
+}
+
+
+save.addEventListener('click', function() {
+    changed_events = [];
+    var existingEvents = calendar.getEvents();
+    if (recurrent_events && recurrent_events.length > 0) {
+        createRecurrentEvents(existingEvents);
+    } else {
+        changed_events.push(new_event);
+    }
+    clearAndCloseEventPopup();
+});
+
+recurrenceButton.addEventListener('click', function() {
+    recurrencePopupProcess(backdrop);
+});
+
+moreOptionsButton.addEventListener('click', function() {
+    recurrencePopupProcess(backdrop);
+});
+
+
+
+let date = new Date();
+let year = date.getFullYear();
+let month = date.getMonth();
+
+const day = document.querySelector(".calendar-dates");
+const currdate = document.querySelector(".calendar-current-date");
+const prenexIcons = document.querySelectorAll(".calendar-navigation span");
+
+// Array of month names
+const months = [
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December"
+];
+
+function handleDaysClick(dayone, lastdate, dayend, monthlastdate, lit) {
+    const handleDayClick = (dayElement, index) => {
+		// Update the date variable with the clicked day
+		let day_index = index - dayone;
+		date = new Date(year, month, day_index+1);
+		const event = new CustomEvent('dateSelected', {detail: {date: date}});
+	    window.dispatchEvent(event);
+	}
+	return handleDayClick
+}
+
+// Function to generate the calendar
+const calendar_manipulate = () => {
+    let dayone = new Date(year, month, 1).getDay();
+    let lastdate = new Date(year, month + 1, 0).getDate();
+    let dayend = new Date(year, month, lastdate).getDay();
+    let monthlastdate = new Date(year, month, 0).getDate();
+    let lit = "";
+
+    // Days from the previous month
+    for (let i = dayone; i > 0; i--) {
+        lit += `<li class="inactive">${monthlastdate - i + 1}</li>`;
+    }
+    // Current month days
+    for (let i = 1; i <= lastdate; i++) {
+        let isToday = i === date.getDate() && month === new Date().getMonth() && year === new Date().getFullYear() ? "active" : "";
+        lit += `<li class="${isToday}">${i}</li>`;
+    }
+
+    // Next month days to fill the row
+    for (let i = 1; i <= 6 - dayend; i++) {
+        lit += `<li class="inactive">${i}</li>`;
+    }
+
+    // Calculate total displayed days and adjust for an additional row if needed
+    let totalDisplayedDays = dayone + lastdate + (6 - dayend);
+    if (totalDisplayedDays / 7 <= 5) { // If total rows are 5 or less, add another row
+        for (let i = 6 - dayend + 1; i <= 6 - dayend + 7; i++) {
+            lit += `<li class="inactive">${i}</li>`;
+        }
+    }
+
+    currdate.innerText = `${months[month]} ${year}`;
+    day.innerHTML = lit;
+
+    const days = document.querySelectorAll(".calendar-dates li");
+    handleDayClick = handleDaysClick(dayone, lastdate, dayend, monthlastdate, lit);
+
+    days.forEach((dayElement, index) => {
+        dayElement.addEventListener("click", function(event) {
+            event.preventDefault();
+            handleDayClick(dayElement, index);
+        });
+    });
+}
+
+calendar_manipulate();
+
+// Attach a click event listener to each icon
+prenexIcons.forEach(icon => {
+	// When an icon is clicked
+	icon.addEventListener("click", () => {
+		// Check if the icon is "calendar-prev"
+		// or "calendar-next"
+		month = icon.id === "calendar-prev" ? month - 1 : month + 1;
+		// Check if the month is out of range
+		if (month < 0 || month > 11) {
+			// Set the date to the first day of the
+			// month with the new year
+			date = new Date(year, month, new Date().getDate());
+			// Set the year to the new year
+			year = date.getFullYear();
+			// Set the month to the new month
+			month = date.getMonth();
+		}
+
+		else {
+			// Set the date to the current date
+			date = new Date();
+		}
+
+		// Call the manipulate function to
+		// update the calendar display
+		calendar_manipulate();
+	});
+});
