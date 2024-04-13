@@ -149,6 +149,7 @@ function processDeleteEvents() {
     changed_events = filteredRecurrentList[0];
     if (filteredRecurrentList && filteredRecurrentList.length > 0) {
         showDeleteRecurringEventPopup();
+        undoElement = clickedEvent;
     } else {
         if (clickedEvent) {
             changed_events = [];
@@ -392,7 +393,6 @@ function showEventPopup() {
         })
         eventSummary.textContent = clickedEvent.title
     }
-
     event_popup.classList.remove('recurrence-box-hidden');
     event_popup.classList.add('recurrence-box');
     adjustWidth(eventDate);
@@ -793,7 +793,11 @@ function showTime() {
     if (clickedEvent && clickedEvent.allDay === true || new_event && new_event.allDay === true) {
         showOnlyDays();
     } else if (clickedEvent && isDatePartDifferent(clickedEvent.start, clickedEvent.end) && !new_event) {
-        showDefaultDaysTimes();
+        if (!clickedEvent.end){
+            showFirstDayTimes();
+        } else {
+            showDefaultDaysTimes();
+        }
     } else {
         showFirstDayTimes();
     }
@@ -924,7 +928,6 @@ function checkOverlaps(evStart, evEnd) {
         exEvent.title !== 'Do not disturb' || exEvent.durationEditable);
 
     let intersectEvents = filterIntersectingRanges(curEvent, existingEvents)
-    console.log('overlaps: ', intersectEvents)
     return intersectEvents
 }
 
@@ -947,12 +950,11 @@ function processEventDrop(info, endTime, flag=true) {
     if (info.event.allDay) {
         setEventNewDateStartEndDates(info);
     } else {
-        if (!info.event.end) {
+        endTime = info.event.end;
+        if (!endTime) {
             endTime = increaseDateTime(info.event.start, 1);
-            setEventNewDateStartEndTime(info, endTime);
-        } else {
-            setEventNewDateStartEndTime(info)
         }
+        setEventNewDateStartEndTime(info, endTime)
         showPopupOnEventClick(x, y);
     }
 
@@ -962,8 +964,11 @@ function processEventDrop(info, endTime, flag=true) {
         }
     }
 
+
+
     if (clickedEvent) {
         clickedEvent = info.event;
+        undoElement = clickedEvent;
         showUndoPopup(info);
         trash.style.display = 'block';
         toggleMoreSaveButtons();
@@ -999,12 +1004,14 @@ function handleEventDrop(info) {
         }
         return {endTime, flag}
     }
-
     var {endTime, flag} = setEventEndTime(info);// Set the event's end time if needed and get the flag
     // Check for overlaps excluding all-day events
     if (!info.event.allDay && checkOverlaps(info.event.start, endTime).length > 0) {
         alert("The current event has overlaps");
         info.revert();
+        if (new_event) {
+            new_event.remove();
+        }
     } else {
         processEventDrop(info, endTime, flag);
     }
@@ -1028,6 +1035,7 @@ function handleEventDragStart(info) {
             clickedEvent = info.event;
         }
     } else if (!clickedEvent) {
+        undoElement = info.event;
         clickedEvent = info.event;
     }
 }
@@ -1046,6 +1054,7 @@ function handleEventResize(info) {
         info.revert();
     } else {
         if (clickedEvent) {
+            undoElement = info.event;
             showUndoPopup(info);
         } else if (new_event && info.event.start.getTime() !== new_event.start.getTime()) {
             new_event.remove();
@@ -1084,7 +1093,6 @@ function manipulate() {
                 click: function() {
                     var allEvents = calendar.getEvents();
                     allEvents = allEvents.filter(exEvent => exEvent.durationEditable);
-                    console.log('allEvents: ', allEvents);
                     sendDataToServer(allEvents, chatId);
                 }
             },
@@ -1097,8 +1105,12 @@ function manipulate() {
         },
 
         dateClick: function(info) {
-            processDateClick(info);
-            onDateClick(info);
+            if (info.date.getHours() === 23 && info.date.getMinutes() === 30) {
+                console.log(info.date)
+            } else {
+                processDateClick(info);
+                onDateClick(info);
+            }
         },
 
         eventResize: function(info) {
@@ -1465,7 +1477,7 @@ function handleAllDayBlock(startDate, endDate) {
  * @param {Date} startDate - The start date of the event.
  * @param {Date} endDate - The end date of the event.
  */
-function handleDefaultDayBlock(startDate, endDate) {
+function handleDefaultDayBlock(info, startDate, endDate) {
     let {dummyEndDate, adjustedEndDate} = getDummyAndAdjustedDates(startDate)
     if (endDate.getTime() === dummyEndDate.getTime()) {
         updateEvent(startDate, dummyEndDate);
@@ -1496,7 +1508,7 @@ function update(info) {
     if (info.event.allDay) {
         handleAllDayBlock(startDate, endDate);
     } else {
-        handleDefaultDayBlock(startDate, endDate);
+        handleDefaultDayBlock(info, startDate, endDate);
     }
 }
 
@@ -1870,6 +1882,8 @@ function addDaysOfWeek(parentElement) {
     return parentElement;
 }
 
+let lastScrollY = 0;
+
 /**
  * Listens for a 'dateSelected' event and updates the value of the active input element with a user-friendly
  * formatted date. This function targets three specific input fields by their global references: `eventDate`,
@@ -1909,8 +1923,15 @@ function updateEvent(newStartTime, newEndTime, isAllDay=false) {
         let intersectEvent = new_event;
     } else if (clickedEvent) {
         oldClickedEvent = clickedEvent;
-        clickedEvent.remove();
-        clickedEvent = calendar.addEvent(event);
+        if (updateFromInput) {
+            clickedEvent.remove()
+            if (undoElement) {
+                oldClickedEvent = undoElement;
+                undoElement.remove();
+            }
+            undoElement = calendar.addEvent(event);
+        }
+        updateFromInput = false;
         let intersectEvent = clickedEvent;
     }
     return newStartTime;
@@ -2108,7 +2129,6 @@ function removeClickedEvent() {
  * @global changed_events - An array tracking individual events that have been added, deleted, or modified.
  */
 function handleSave() {
-    removeClickedEvent();
     changed_events.forEach(function(changed_event) {
         if (changed_event) {
             changed_event.remove();
@@ -2206,23 +2226,30 @@ function updateSublist(allChangedElements, changed_elements) {
  * together at some point.
  */
 function handleDelete() {
-    if (clickedEvent) {
-        changed_events.push(clickedEvent);
+    if (undoElement) {
+        changed_events.push(undoElement);
     }
     changed_events.forEach(function(changed_event) {
         calendar.addEvent(changed_event);
     })
     updateSublist(allChangedEvents, changed_events);
-    allChangedEvents.push(changed_events);
-    allChangedEvents = removeDuplicateSublists(allChangedEvents);
+    if (changed_events.length > 2) {
+        allChangedEvents.push(changed_events);
+        allChangedEvents = removeDuplicateSublists(allChangedEvents);
+    }
     hideEventPopup();
 }
 
 // Handles an update option when revert updated event to the previous state
 function handleUpdate() {
-    clickedEvent.remove();
+    const querySel = ".fc-scroller.fc-scroller-liquid-absolute"
+    let position = document.querySelector(querySel).scrollTop;
+
+    undoElement.remove();
     calendar.addEvent(oldClickedEvent);
     calendar.gotoDate(oldClickedEvent.start);
+    document.querySelector(querySel).scrollTop = position;
+
     clickedEvent = '';
     oldClickedEvent = '';
     hideEventPopup();
@@ -2230,11 +2257,12 @@ function handleUpdate() {
 
 // Reverts any changes made during the current action.
 function handleRevert() {
-    removeClickedEvent();
+    undoElement.remove();
     newInfo.revert();
     hideEventPopup();
 }
 
+var undoElement;
 /**
  * Attaches a click event listener to the undoButton. This function first hides any context menu popups and then
  * performs actions based on the `newInfo` state. If there are recurrent events, it shows a discard popup; otherwise, it
@@ -2441,7 +2469,6 @@ recurrenceCancelButton.onclick = function() {
     recurrent_events = [];
     closeRecurrencePopup(backdrop);
     hideRedCircle();
-    console.log(recurrent_events);
 }
 
 // Attach a click event listener to recurrenceDoneButton
@@ -2470,7 +2497,7 @@ function getNewStartEndTimes() {
     var newDate = new Date(convertDateFormat(eventDate.value));
     var newStartTime = concatenateDateTime(newDate, eventStartTime.value);
     var newEndTime = concatenateDateTime(newDate, eventEndTime.value);
-    return {newStartTime, newEndTime}
+    return {newDate, newStartTime, newEndTime}
 }
 
 /**
@@ -2481,7 +2508,7 @@ function getNewStartEndTimes() {
  * @returns {Object} An object containing the new start and end times for the event.
  */
 function getEventNewStartEndTime() {
-    var {newStartTime, newEndTime} = getNewStartEndTimes()
+    var {newDate, newStartTime, newEndTime} = getNewStartEndTimes()
     if (eventEndTime.value === '12:00am') {
         if (newStartTime > newEndTime) {
             var newEndTime = concatenateDateTime(newDate, '11:59pm');
@@ -2502,6 +2529,7 @@ function handleUpdateEvent() {
 
     let {newStartTime, newEndTime} = getEventNewStartEndTime()
     if (oldStartTime.getTime() !== newStartTime.getTime() || oldEndTime.getTime() !== newEndTime.getTime()) {
+        updateFromInput = true;
         var newSTime = updateEvent(newStartTime, newEndTime)
         if (clickedEvent) {
             showUndoPopup("update");
@@ -2578,7 +2606,7 @@ function handleUpdateAllDayEvent() {
  * @returns {boolean} True if there are overlaps between the constructed event time range and existing events; false otherwise.
  */
 function checkIntersectionsFromInputFields() {
-    var {newStartTime, newEndTime} = getNewStartEndTimes()
+    var {newDate, newStartTime, newEndTime} = getNewStartEndTimes()
     return checkOverlaps(newStartTime, newEndTime).length > 0
 }
 
@@ -2591,12 +2619,18 @@ function checkIntersectionsFromInputFields() {
  * @param {HTMLElement} inputDateElement - The input element with a valid date, such as the event's start or end date input.
  */
 function handleCorrectDateInput(inputDateElement) {
+    const querySel = ".fc-scroller.fc-scroller-liquid-absolute"
+    let position = document.querySelector(querySel).scrollTop;
+
     if (!getEvent().allDay) {
         var newSTime = handleUpdateEvent();
         if (!newSTime) {
             var newSTime = new Date(inputDateElement.value);
         }
-        if (inputDateElement == eventDate) { calendar.gotoDate(newSTime) }
+        if (inputDateElement == eventDate) {
+            calendar.gotoDate(newSTime);
+            document.querySelector(querySel).scrollTop = position;
+        }
     } else {
         handleUpdateAllDayEvent();
     }
@@ -2621,6 +2655,7 @@ function handleIncorrectDateInput(inputDateElement) {
     console.log('invalid date format!')
 }
 
+let updateFromInput = false;
 /**
  * Validates and processes an input date element for an event form, handling different scenarios based on the element's role
  * (start date or other) and whether the event is all-day or has potential overlaps.
@@ -2639,6 +2674,7 @@ function handleDateInput(inputDateElement) {
         }
     }
 
+    updateFromInput = true;
     customCalendarPopup.classList.add('hidden');
     var is_date_valid = isValidDateFormat(inputDateElement.value);
     if (is_date_valid) {
@@ -2759,6 +2795,7 @@ function clearAndCloseEventPopup() {
  */
 function getEvent() {
     if (clickedEvent) {
+        console.log('clicked event')
         var event = clickedEvent;
     } else if (new_event) {
         var event = new_event;
@@ -2783,25 +2820,6 @@ function handleCreateRecurrentEvent(recStart, recEnd) {
 }
 
 /**
- * Evaluates whether an existing event should be removed based on specific criteria: the event must be duration editable,
- * have a title of 'Do not disturb', and its time range must be fully encompassed by the specified start and end times.
- *
- * @param {Object} event - The existing event object, with properties, including duration editability, title, start and end times.
- * @param {Date} start - The start time against which the existing event's start time is compared.
- * @param {Date} end - The end time against which the existing event's end time is compared.
- * @returns {boolean} - Returns true if the existing event meets the criteria for removal; otherwise, returns false.
- */
-function removeExistingEvent(event, start, end) {
-    var {startTime, endTime} = getEventStartEndTimes(event);
-    var ev = getEvent();
-    return !event.allDay && event.durationEditable && event.title === 'Do not disturb' &&
-           start.getTime() >= startTime.getTime() &&
-           end.getTime() <= endTime.getTime() ||
-           ev.allDay && event.durationEditable &&
-           start.getTime() === startTime.getTime();
-}
-
-/**
  * Checks if a default (non-all-day) event matches a specified time range by comparing the start and end times of
  * both the existing event and the specified range.
  *
@@ -2811,9 +2829,15 @@ function removeExistingEvent(event, start, end) {
  * @returns {boolean} - Returns true if the specified time range starts after or at the same time as the existing event's
  *         start time and ends before or exactly at the existing event's end time; otherwise, returns false.
  */
-function isExistingDefaultEventFunc(event, start, end) {
-    const {startTime, endTime} = getEventStartEndTimes(event);
-    return start.getTime() >= startTime.getTime() && end.getTime() <= endTime.getTime();
+function isExistingDefaultEventFunc(existEvent, newStart, newEnd) {
+    // Check if newEnd has "00:00:00" as time and adjust if true
+    if (newEnd.getHours() === 0 && newEnd.getMinutes() === 0 && newEnd.getSeconds() === 0 && newEnd.getMilliseconds() === 0) {
+        newEnd.setHours(23, 59, 59, 999);
+    }
+
+    const {startTime, endTime} = getEventStartEndTimes(existEvent);
+    result = newStart.getTime() >= startTime.getTime() && newEnd.getTime() <= endTime.getTime();
+    return result
 }
 
 /**
@@ -2841,11 +2865,8 @@ function isExistingEventFunc(element, existingEvents) {
     var isExistingEvent = existingEvents.some(function(event) {
         let newStart = element[0]
         let newEnd = element[1]
-        if (removeExistingEvent(event, newStart, newEnd)) {
-            event.remove()
-        }
         if (event.allDay) {
-            if (element.length === 3) {
+            if (element.length === 2) {
                 return isExistingAllDayEventFunc(event, newStart)
             } else {
                 return isExistingDefaultEventFunc(event, newStart, newEnd);
@@ -3026,7 +3047,7 @@ function processSave() {
     clearAndCloseEventPopup();
 }
 
-// Attach a click event listener to save button button
+// Attach a click event listener to save button
 save.addEventListener('click', function() {
     processSave();
 });
