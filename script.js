@@ -64,6 +64,7 @@ var trash = document.getElementById('delete-event-trash');
 var save = document.getElementById('event-save');
 var eventDate = document.getElementById('event-date');
 var eventStartTime = document.getElementById('event-start');
+var eventDateEnd = document.getElementById('event-date-end');
 var eventEndTime = document.getElementById('event-end');
 var recurrenceButton = document.getElementById('recurrence-button');
 var moreOptionsButton = document.getElementById('event-more-options');
@@ -71,7 +72,6 @@ var dragHandle = document.getElementById('drag-handle');
 makeDraggable(event_popup, dragHandle);
 var eventStartEnd = document.getElementById('event-start-end');
 var minusSymbol = document.getElementById('minus-symbol');
-var eventDateEnd = document.getElementById('event-date-end');
 
 var discardPopup = document.getElementById('discard-changes');
 var cancelDiscard = document.getElementById('cancel-discard');
@@ -561,7 +561,12 @@ function createEvent(info) {
     }
     if (!info.allDay) {
         var endTime = increaseDateTime(info.dateStr, 1);
+        let {dummyEndDate, adjustedEndDate} = getDummyAndAdjustedDates(info.dateStr)
+        if (endTime.getTime() === dummyEndDate.getTime()) {
+            endTime = adjustedEndDate;
+        }
     }
+
     var newEvent = getEventInstance(info.dateStr, endTime)
     new_event = calendar.addEvent(newEvent);
     updateInputDateTimeFields(info, endTime);
@@ -640,7 +645,6 @@ function onDateClick(info) {
     moreOptionsButton.style.display = 'block';
     save.style.display = 'block';
     hideContextMenuPopup();
-    showTime();
     var is_recurrence_active = recurrence_popup.classList.contains('recurrence-box');
     var is_event_active = event_popup.classList.contains('recurrence-box');
 
@@ -799,8 +803,18 @@ function showTime() {
             showDefaultDaysTimes();
         }
     } else {
-        showFirstDayTimes();
+        let event = getEvent();
+        if (event) {
+            let adjustedEndDate = new Date(event.start);
+            adjustedEndDate.setHours(23, 59, 59, 999);
+            if (event.end > adjustedEndDate) {
+                showDefaultDaysTimes();
+            } else {
+                showFirstDayTimes();
+            }
+        }
     }
+    toggleMoreSaveButtons();
 }
 
 /**
@@ -849,7 +863,12 @@ function handleDefaultDayClick(info) {
     if (!clickedEvent.end) {
         endTime = increaseDateTime(clickedEvent.start, 24)
         setEventNewDateStartEndTime(info, endTime);
-    } else {
+    } else if (endDate > adjustedEndDate) {
+        // If the end date is after the adjusted end date, revert the resize
+        alert('Events cannot span multiple days.');
+        info.revert();
+        closeActiveWindows();
+    }else {
         setEventNewDateStartEndTime(info);
     }
 }
@@ -903,10 +922,9 @@ function onEventClick(info) {
     }
 
     clickedEvent = info.event;
-    showTime();
-    setTime(info.event);
     processEventAndPopup(info);
-    toggleMoreSaveButtons();
+    setTime(info.event);
+    showTime();
 }
 
 /**
@@ -947,31 +965,24 @@ function processEventDrop(info, endTime, flag=true) {
     var x = lastKnownMousePosition.x
     var y = lastKnownMousePosition.y
 
-    if (info.event.allDay) {
-        setEventNewDateStartEndDates(info);
-    } else {
-        endTime = info.event.end;
-        if (!endTime) {
-            endTime = increaseDateTime(info.event.start, 1);
-        }
-        setEventNewDateStartEndTime(info, endTime)
-        showPopupOnEventClick(x, y);
-    }
-
     if (flag) {
         if (new_event) {
             new_event = info.event;
         }
     }
 
-
-
     if (clickedEvent) {
-        clickedEvent = info.event;
-        undoElement = clickedEvent;
+        if (dragAllDay) {
+            clickedEvent.remove()
+            let event = getEventInstance(info.event.start, endTime);
+            clickedEvent = calendar.addEvent(event);
+            undoElement = clickedEvent
+        } else {
+            clickedEvent = info.event;
+            undoElement = clickedEvent;
+        }
         showUndoPopup(info);
         trash.style.display = 'block';
-        toggleMoreSaveButtons();
     }
 
     if (!clickedEvent && !new_event) {
@@ -980,6 +991,17 @@ function processEventDrop(info, endTime, flag=true) {
 
     if (flag) {
         update(info);
+    }
+
+    if (info.event.allDay) {
+        setEventNewDateStartEndDates(info);
+    } else {
+        endTime = info.event.end;
+        if (!endTime) {
+            endTime = increaseDateTime(info.event.start, 1);
+        }
+//        setEventNewDateStartEndTime(info, endTime)
+        showPopupOnEventClick(x, y);
     }
     showTime();
 }
@@ -1026,13 +1048,18 @@ function handleEventDrop(info) {
  */
 function handleEventDragStart(info) {
     if (new_event) {
-        var infoEvent = new Date(info.event.start);
-        var newEvent = new Date(new_event.start);
+        if (info.event._instance !== new_event._instance) {
+            new_event.remove();
+            closeActiveWindows();
+        } else {
+            var infoEvent = new Date(info.event.start);
+            var newEvent = new Date(new_event.start);
 
-        if (infoEvent.getTime() !== newEvent.getTime()) {
-            new_event.remove()
-            new_event = '';
-            clickedEvent = info.event;
+            if (infoEvent.getTime() !== newEvent.getTime()) {
+                new_event.remove()
+                new_event = '';
+                clickedEvent = info.event;
+            }
         }
     } else if (!clickedEvent) {
         undoElement = info.event;
@@ -1121,6 +1148,9 @@ function manipulate() {
         eventDragStart: function(info) {
             checkRecurrentEvents(info);
             handleEventDragStart(info);
+            if (info.event.allDay) {
+                dragAllDay = true;
+            }
         },
 
         eventDrop: function(info) {
@@ -1144,6 +1174,8 @@ function manipulate() {
         }
     });
 }
+
+var dragAllDay = false;
 
 /**
  * Processes clicks on dates within the calendar. It determines whether to show a discard popup based on the presence
@@ -1224,6 +1256,36 @@ document.addEventListener('DOMContentLoaded', function() {
     get_existing_unavailable_time();
 });
 
+function splitDateRangeByDay(startTime, endTime) {
+    let start = new Date(startTime);
+    let end = new Date(endTime);
+    let ranges = [];
+
+    while (start < end) {
+        // Get the end of the day for the current 'start' date or the final end time, whichever is earlier.
+        let endOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59, 59);
+
+        // If the calculated end of day is after the overall end time, use the end time instead.
+        if (endOfDay > end) {
+            endOfDay = end;
+        }
+
+        // Add the current range to the array.
+        ranges.push({
+            startTime: start.toISOString(),
+            endTime: endOfDay.toISOString()
+        });
+
+        // Set the new start time to the beginning of the next day, unless end of day is the end time.
+        start = new Date(endOfDay.getTime() + 1000); // Adds one second to start at the next day, 00:00:00
+        if (start > end) {
+            break; // if the start is beyond end time, exit the loop
+        }
+    }
+
+    return ranges;
+}
+
 /**
  * Processes and adds an event to a custom calendar based on provided details, including start and end times, summary,
  * calendar type, and whether it's an all-day event.
@@ -1240,28 +1302,33 @@ function createCalendarDays(startTime, endTime, summary, calendar_type, allDay) 
         allCalendarEvents[startTime][1] == summary) {
         return
     }
-    var event = {
-        allDay: allDay,
-        title: summary,
-        start: startTime,
-        end: endTime,
-        backgroundColor: 'blue',
-        borderColor: 'blue',
-        editable: false
-    };
 
-    if (calendar_type === 'ghl') {
-        if (summary === 'Do not disturb') {event.editable = true;}
-        event.backgroundColor = 'green'
-        event.borderColor = 'green'
-    }
+    let events = splitDateRangeByDay(startTime, endTime);
 
-    if (startTime.getTime() == endTime.getTime()) {
-        event.allDay = true;
-    }
-    let current_event = calendar.addEvent(event);
+    events.forEach(function(result_event) {
+        var event = {
+            allDay: allDay,
+            title: summary,
+            start: result_event.startTime,
+            end: result_event.endTime,
+            backgroundColor: 'blue',
+            borderColor: 'blue',
+            editable: false
+        };
 
-    allCalendarEvents[startTime] = [endTime, summary];
+        if (calendar_type === 'ghl') {
+            if (summary === 'Do not disturb') {event.editable = true;}
+            event.backgroundColor = 'green'
+            event.borderColor = 'green'
+        }
+
+        if (startTime.getTime() == endTime.getTime()) {
+            event.allDay = true;
+        }
+        let current_event = calendar.addEvent(event);
+
+        allCalendarEvents[startTime] = [endTime, summary];
+    })
 }
 
 /**
@@ -1480,7 +1547,9 @@ function handleAllDayBlock(startDate, endDate) {
 function handleDefaultDayBlock(info, startDate, endDate) {
     let {dummyEndDate, adjustedEndDate} = getDummyAndAdjustedDates(startDate)
     if (endDate.getTime() === dummyEndDate.getTime()) {
-        updateEvent(startDate, dummyEndDate);
+        eventStartTime.value = formatAMPM(startDate);
+        eventEndTime.value = formatAMPM(adjustedEndDate);
+        updateEvent(startDate, adjustedEndDate);
     } else if (endDate > adjustedEndDate) {
         // If the end date is after the adjusted end date, revert the resize
         alert('Events cannot span multiple days.');
@@ -1914,6 +1983,7 @@ window.addEventListener('dateSelected', function(e) {
  */
 function updateEvent(newStartTime, newEndTime, isAllDay=false) {
     var event = getEventInstance(newStartTime, newEndTime);
+    getEventNewStartEndTime
     if (isAllDay) {
         event.allDay = true
     }
@@ -1923,17 +1993,16 @@ function updateEvent(newStartTime, newEndTime, isAllDay=false) {
         let intersectEvent = new_event;
     } else if (clickedEvent) {
         oldClickedEvent = clickedEvent;
-        if (updateFromInput) {
-            clickedEvent.remove()
-            if (undoElement) {
-                oldClickedEvent = undoElement;
-                undoElement.remove();
-            }
-            undoElement = calendar.addEvent(event);
+        clickedEvent.remove()
+        if (undoElement) {
+            oldClickedEvent = undoElement;
+            undoElement.remove();
         }
-        updateFromInput = false;
+        undoElement = calendar.addEvent(event);
+        clickedEvent = undoElement
         let intersectEvent = clickedEvent;
     }
+    showTime();
     return newStartTime;
 }
 
@@ -2226,9 +2295,9 @@ function updateSublist(allChangedElements, changed_elements) {
  * together at some point.
  */
 function handleDelete() {
-    if (undoElement) {
-        changed_events.push(undoElement);
-    }
+//    if (undoElement) {
+//        changed_events.push(undoElement);
+//    }
     changed_events.forEach(function(changed_event) {
         calendar.addEvent(changed_event);
     })
@@ -2258,6 +2327,9 @@ function handleUpdate() {
 // Reverts any changes made during the current action.
 function handleRevert() {
     undoElement.remove();
+    undoElement = '';
+    clickedEvent = '';
+    new_event = '';
     newInfo.revert();
     hideEventPopup();
 }
@@ -2795,7 +2867,6 @@ function clearAndCloseEventPopup() {
  */
 function getEvent() {
     if (clickedEvent) {
-        console.log('clicked event')
         var event = clickedEvent;
     } else if (new_event) {
         var event = new_event;
