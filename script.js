@@ -556,8 +556,8 @@ function getEventInstance(startT, endT) {
 function createEvent(info) {
     function updateInputDateTimeFields(info, endTime) {
         eventDate.value = formatDateToUserFriendly(info.dateStr);
-        eventStartTime.value = convertToAMPM(info.dateStr);
-        eventEndTime.value = convertToAMPM(endTime);
+        var dummyEndDate = getDummyEndDate(info.dateStr, 0);
+        eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
     }
     if (!info.allDay) {
         var endTime = increaseDateTime(info.dateStr, 1);
@@ -784,7 +784,6 @@ function showOnlyDays() {
     eventDateEnd.style.display = 'flex';
     eventStartTime.style.display = 'none';
     eventEndTime.style.display = 'none';
-    eventDateEnd.value = eventDate.value;
 }
 
 /**
@@ -850,27 +849,6 @@ function setEventNewDateStartEndDates(info) {
     }
     eventDate.value = formatDateToUserFriendly(info.event.start.toDateString());
     eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
-}
-
-/**
- * Handles the click on a default (non-all-day) event. If the clicked event does not have an end time, it sets an end time
- * 24 hours after the start time. It then updates the event's start and end times accordingly.
- *
- * @param {Object} info - Information about the event that was clicked, used for updating the event details.
- * @global clickedEvent - The event that was last clicked, used to check and update its end time.
- */
-function handleDefaultDayClick(info) {
-    if (!clickedEvent.end) {
-        endTime = increaseDateTime(clickedEvent.start, 24)
-        setEventNewDateStartEndTime(info, endTime);
-    } else if (endDate > adjustedEndDate) {
-        // If the end date is after the adjusted end date, revert the resize
-        alert('Events cannot span multiple days.');
-        info.revert();
-        closeActiveWindows();
-    }else {
-        setEventNewDateStartEndTime(info);
-    }
 }
 
 /**
@@ -1547,16 +1525,12 @@ function handleAllDayBlock(startDate, endDate) {
 function handleDefaultDayBlock(info, startDate, endDate) {
     let {dummyEndDate, adjustedEndDate} = getDummyAndAdjustedDates(startDate)
     if (endDate.getTime() === dummyEndDate.getTime()) {
-        eventStartTime.value = formatAMPM(startDate);
-        eventEndTime.value = formatAMPM(adjustedEndDate);
         updateEvent(startDate, adjustedEndDate);
     } else if (endDate > adjustedEndDate) {
         // If the end date is after the adjusted end date, revert the resize
         alert('Events cannot span multiple days.');
         info.revert();
     } else {
-        eventStartTime.value = formatAMPM(startDate);
-        eventEndTime.value = formatAMPM(endDate);
         updateEvent(startDate, endDate);
     }
 }
@@ -1991,6 +1965,7 @@ function updateEvent(newStartTime, newEndTime, isAllDay=false) {
         new_event.remove();
         new_event = calendar.addEvent(event);
         let intersectEvent = new_event;
+        setTime(new_event)
     } else if (clickedEvent) {
         oldClickedEvent = clickedEvent;
         clickedEvent.remove()
@@ -2001,6 +1976,7 @@ function updateEvent(newStartTime, newEndTime, isAllDay=false) {
         undoElement = calendar.addEvent(event);
         clickedEvent = undoElement
         let intersectEvent = clickedEvent;
+        setTime(clickedEvent);
     }
     showTime();
     return newStartTime;
