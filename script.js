@@ -89,6 +89,11 @@ var contextMenuPopup = document.getElementById('context-menu-popup');
 
 var allChangedEvents = [];
 
+var hasIntersectionsFlag = false;
+var dragAllDay = false;
+var undoElement;
+let updateFromInput = false;
+
 // Show contextMenuPopup element.
 function showContextMenuPopup() {
     contextMenuPopup.classList.remove('recurrence-box-hidden');
@@ -554,11 +559,6 @@ function getEventInstance(startT, endT) {
  * @global new_event - The newly created calendar event instance.
  */
 function createEvent(info) {
-    function updateInputDateTimeFields(info, endTime) {
-        eventDate.value = formatDateToUserFriendly(info.dateStr);
-        var dummyEndDate = getDummyEndDate(info.dateStr, 0);
-        eventDateEnd.value = formatDateToUserFriendly(dummyEndDate);
-    }
     if (!info.allDay) {
         var endTime = increaseDateTime(info.dateStr, 1);
         let {dummyEndDate, adjustedEndDate} = getDummyAndAdjustedDates(info.dateStr)
@@ -569,7 +569,7 @@ function createEvent(info) {
 
     var newEvent = getEventInstance(info.dateStr, endTime)
     new_event = calendar.addEvent(newEvent);
-    updateInputDateTimeFields(info, endTime);
+    setTime(new_event);
     showTime();
     // Calculate the position for the popup.
     var x = info.jsEvent.clientX;
@@ -648,13 +648,50 @@ function onDateClick(info) {
     var is_recurrence_active = recurrence_popup.classList.contains('recurrence-box');
     var is_event_active = event_popup.classList.contains('recurrence-box');
 
+
+    if (info.allDay) {
+        let times = resetTimes(info.dateStr, addOneHour(info.dateStr));
+        var startTime = new Date(times.newStartTime)
+        var endTime = new Date(times.newEndTime)
+    } else {
+        var startTime = new Date(info.dateStr);
+        var endTime = new Date(addOneHour(info.dateStr));
+    }
+
     if (recurrent_events && recurrent_events.length > 0) {
-        handleRecurrence();
+        if (checkOverlaps(startTime, endTime).length > 0) {
+            alert("The event cannot be created because it has overlaps");
+        } else {
+            handleRecurrence();
+        }
     } else if (is_recurrence_active || is_event_active) {
         closeActiveWindows();
     } else {
-        handleCreateEvent();
+        if (checkOverlaps(startTime, endTime).length > 0) {
+            alert("The event cannot be created because it has overlaps");
+        } else {
+            handleCreateEvent();
+        }
     }
+}
+
+function resetTimes(startTime, endTime) {
+    // Parse the start and end time strings into Date objects
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // Reset start time to 00:00:00
+    start.setHours(0, 0, 0, 0);
+
+    // Reset end time to 00:00:00 and add one day
+    end.setHours(0, 0, 0, 0);
+    end.setDate(end.getDate() + 1);
+
+    // Return the updated dates as strings
+    return {
+        newStartTime: start.toString(),
+        newEndTime: end.toString()
+    };
 }
 
 /**
@@ -920,7 +957,7 @@ function checkOverlaps(evStart, evEnd) {
         exEvent.start.getTime() !== curEvent.startTime.getTime() && exEvent.title !== 'Do not disturb' ||
         exEvent.end && exEvent.end.getTime() !== curEvent.endTime.getTime() && exEvent.title !== 'Do not disturb'||
         exEvent.start.getTime() === curEvent.startTime.getTime() &&
-        exEvent.ene && exEvent.end.getTime() === curEvent.endTime.getTime() &&
+        exEvent.end && exEvent.end.getTime() === curEvent.endTime.getTime() &&
         exEvent.title !== 'Do not disturb' || exEvent.durationEditable);
 
     let intersectEvents = filterIntersectingRanges(curEvent, existingEvents)
@@ -950,17 +987,8 @@ function processEventDrop(info, endTime, flag=true) {
     }
 
     if (clickedEvent) {
-        if (dragAllDay) {
-            clickedEvent.remove()
-            let event = getEventInstance(info.event.start, endTime);
-            clickedEvent = calendar.addEvent(event);
-            undoElement = clickedEvent
-        } else {
-            clickedEvent = info.event;
-            undoElement = clickedEvent;
-        }
+        undoElement = clickedEvent;
         showUndoPopup(info);
-        trash.style.display = 'block';
     }
 
     if (!clickedEvent && !new_event) {
@@ -971,16 +999,7 @@ function processEventDrop(info, endTime, flag=true) {
         update(info);
     }
 
-    if (info.event.allDay) {
-        setEventNewDateStartEndDates(info);
-    } else {
-        endTime = info.event.end;
-        if (!endTime) {
-            endTime = increaseDateTime(info.event.start, 1);
-        }
-//        setEventNewDateStartEndTime(info, endTime)
-        showPopupOnEventClick(x, y);
-    }
+    setTime(info.event);
     showTime();
 }
 
@@ -1008,12 +1027,46 @@ function handleEventDrop(info) {
     // Check for overlaps excluding all-day events
     if (!info.event.allDay && checkOverlaps(info.event.start, endTime).length > 0) {
         alert("The current event has overlaps");
-        info.revert();
-        if (new_event) {
+        if (clickedEvent) {
+            info.revert();
+            if (dragAllDay) {
+                undoElement.remove();
+            }
+        } else if (new_event) {
             new_event.remove();
+            clickedEvent = '';
+            undoElement = '';
+            new_event = '';
+            recurrent_events = []
+            hideRedCircle();
+            closeActiveWindows();
         }
+        hideUndoPopup();
     } else {
-        processEventDrop(info, endTime, flag);
+        var start = info.event.start
+        if (info.event.allDay) {
+            let times = resetTimes(start, addOneHour(start));
+            var startTime = new Date(times.newStartTime)
+            var endTime = new Date(times.newEndTime)
+        } else {
+            var startTime = new Date(start);
+            var endTime = new Date(addOneHour(start));
+        }
+        if (checkOverlaps(startTime, endTime).length > 0) {
+            alert("The event cannot be created because it has overlaps");
+            if (undoElement) {
+                info.revert()
+                undoElement.remove();
+                undoElement = '';
+                hideUndoPopup();
+            }
+            if (new_event) {
+                new_event.remove();
+            }
+            closeActiveWindows();
+        } else {
+            processEventDrop(info, endTime, flag);
+        }
     }
 }
 
@@ -1025,23 +1078,27 @@ function handleEventDrop(info) {
  * @param {Object} info - Information about the event being dragged, including its start time.
  */
 function handleEventDragStart(info) {
-    if (new_event) {
-        if (info.event._instance !== new_event._instance) {
-            new_event.remove();
-            closeActiveWindows();
-        } else {
-            var infoEvent = new Date(info.event.start);
-            var newEvent = new Date(new_event.start);
+    if (recurrent_events && recurrent_events.length > 0) {
+    } else {
+        if (new_event) {
+            if (info.event._instance !== new_event._instance) {
+                new_event.remove();
+                closeActiveWindows();
+            } else {
+                var infoEvent = new Date(info.event.start);
+                var newEvent = new Date(new_event.start);
 
-            if (infoEvent.getTime() !== newEvent.getTime()) {
-                new_event.remove()
-                new_event = '';
-                clickedEvent = info.event;
+                if (infoEvent.getTime() !== newEvent.getTime()) {
+                    new_event.remove()
+                    new_event = '';
+                    clickedEvent = info.event;
+                }
             }
+        } else {
+            undoElement = info.event;
+            clickedEvent = info.event;
         }
-    } else if (!clickedEvent) {
-        undoElement = info.event;
-        clickedEvent = info.event;
+        dragAllDay = info.event.allDay;
     }
 }
 
@@ -1054,9 +1111,10 @@ function handleEventDragStart(info) {
  */
 function handleEventResize(info) {
     // Check for overlaps except for all-day events
-    if (!info.event.allDay && checkOverlaps(info.event.start, info.event.end).length > 0) {
+    if (checkOverlaps(info.event.start, info.event.end).length > 0) {
         alert("The current event has overlaps");
         info.revert();
+        hideUndoPopup();
     } else {
         if (clickedEvent) {
             undoElement = info.event;
@@ -1065,7 +1123,8 @@ function handleEventResize(info) {
             new_event.remove();
             new_event = '';
         } else if (!clickedEvent && !new_event) {
-            clickedEvent = info.event;
+            undoElement = info.event;
+            clickedEvent = undoElement;
             showUndoPopup(info);
         }
         update(info);
@@ -1105,30 +1164,42 @@ function manipulate() {
 
         events: events,
 
+        eventAllow: function(dropInfo, draggedEvent) {
+            if (recurrent_events && recurrent_events.length > 0) {
+                if (new_event._instance === draggedEvent._instance || clickedEvent._instance === draggedEvent._instance) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return true;
+            }
+        },
+
         eventClick: function(info) {
-            processEventClick(info);
+            if (clickedEvent && recurrent_events && recurrent_events.length > 0) {
+            } else {
+                processEventClick(info);
+            }
         },
 
         dateClick: function(info) {
             if (info.date.getHours() === 23 && info.date.getMinutes() === 30) {
                 console.log(info.date)
             } else {
-                processDateClick(info);
-                onDateClick(info);
+                if (clickedEvent && recurrent_events && recurrent_events.length > 0) {
+                } else {
+                    onDateClick(info);
+                }
             }
         },
 
         eventResize: function(info) {
-            checkRecurrentEvents(info);
             handleEventResize(info);
         },
 
         eventDragStart: function(info) {
-            checkRecurrentEvents(info);
             handleEventDragStart(info);
-            if (info.event.allDay) {
-                dragAllDay = true;
-            }
         },
 
         eventDrop: function(info) {
@@ -1153,46 +1224,11 @@ function manipulate() {
     });
 }
 
-var dragAllDay = false;
-
-/**
- * Processes clicks on dates within the calendar. It determines whether to show a discard popup based on the presence
- * of a new event, recurrent events, and whether a date or event was previously clicked. If there are new or recurrent
- * events and the clicked date does not match the start time of a new event (when no event is clicked), or if an event
- * is already clicked and recurrent events exist, it shows a discard popup.
- *
- * @param {Object} info - The information about the date that was clicked, including the date string.
- */
-function processDateClick(info) {
-    // Check if there is a new event and any recurrent events
-    if (new_event && recurrent_events && recurrent_events.length > 0) {
-        // Check if no event has been clicked or if the clicked date matches the new event's start time
-        if (!clickedEvent || new_event.start.getTime() == info.dateStr) {
-        } else {
-            showDiscardPopup(); // Show a popup to potentially discard changes
-        }
-    } else if (clickedEvent && recurrent_events && recurrent_events.length > 0) {
-        showDiscardPopup();
-    }
+function addOneHour(dateString) {
+    const date = new Date(dateString);
+    date.setHours(date.getHours() + 1);
+    return date.toString();
 }
-
-
-/**
- * Checks if the event being modified is part of recurrent events and compares it against a new event's start time.
- *
- * @param {Object} info - The information about the event being modified, including start time.
- */
-function checkRecurrentEvents(info) {
-    // Check if there is a new event and any recurrent events exist
-    if (new_event && recurrent_events && recurrent_events.length > 0) {
-        // Compare the start time of the new event with the event being modified
-        if (new_event.start.getTime() == info.event.start.getTime()) {
-        } else {
-            showDiscardPopup(); // Show a popup to potentially discard changes for mismatched times
-        }
-    }
-}
-
 
 /**
  * Processes clicks on calendar events. If there is a new event and recurrent events exist, it checks whether the clicked
@@ -1239,26 +1275,41 @@ function splitDateRangeByDay(startTime, endTime) {
     let end = new Date(endTime);
     let ranges = [];
 
+    // Handle the first day separately if it starts at a time other than 00:00:00
+    let firstDayEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59, 59);
+    if (firstDayEnd > end) {
+        firstDayEnd = end;
+    }
+    ranges.push({
+        startTime: start.toISOString(),
+        endTime: firstDayEnd.toISOString(),
+        allDay: false
+    });
+
+    // Advance start to the beginning of the next day
+    start = new Date(firstDayEnd.getTime() + 1000);
+
+    // Handle full days in between
     while (start < end) {
-        // Get the end of the day for the current 'start' date or the final end time, whichever is earlier.
         let endOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59, 59);
-
-        // If the calculated end of day is after the overall end time, use the end time instead.
-        if (endOfDay > end) {
-            endOfDay = end;
+        if (endOfDay >= end) {
+            break;  // Do not add this day if it overlaps with the last partial day
         }
+        ranges.push({
+            startTime: new Date(start).toISOString(),
+            endTime: endOfDay.toISOString(),
+            allDay: true
+        });
+        start = new Date(endOfDay.getTime() + 1000); // Move to the start of the next day
+    }
 
-        // Add the current range to the array.
+    // Handle the last day if there is remaining time after the last full day
+    if (start < end) {
         ranges.push({
             startTime: start.toISOString(),
-            endTime: endOfDay.toISOString()
+            endTime: end.toISOString(),
+            allDay: false
         });
-
-        // Set the new start time to the beginning of the next day, unless end of day is the end time.
-        start = new Date(endOfDay.getTime() + 1000); // Adds one second to start at the next day, 00:00:00
-        if (start > end) {
-            break; // if the start is beyond end time, exit the loop
-        }
     }
 
     return ranges;
@@ -1281,11 +1332,11 @@ function createCalendarDays(startTime, endTime, summary, calendar_type, allDay) 
         return
     }
 
-    let events = splitDateRangeByDay(startTime, endTime);
+    var events = splitDateRangeByDay(startTime, endTime);
 
     events.forEach(function(result_event) {
         var event = {
-            allDay: allDay,
+            allDay: result_event.allDay,
             title: summary,
             start: result_event.startTime,
             end: result_event.endTime,
@@ -1300,8 +1351,11 @@ function createCalendarDays(startTime, endTime, summary, calendar_type, allDay) 
             event.borderColor = 'green'
         }
 
-        if (startTime.getTime() == endTime.getTime()) {
-            event.allDay = true;
+        // Adjust end time for allDay events to include the last day fully
+        if (event.allDay) {
+            let endTimeAdjust = new Date(result_event.endTime);
+            endTimeAdjust.setDate(endTimeAdjust.getDate() + 1);
+            event.end = endTimeAdjust.toISOString();
         }
         let current_event = calendar.addEvent(event);
 
@@ -1434,6 +1488,8 @@ function processClickedElement(clickedElement) {
             if (isOldEvent) {
                 handleContextMenuCall(clickedElement, calendarEvent);
             }
+        } else {
+            hideContextMenuPopup();
         }
     }
 }
@@ -1925,8 +1981,6 @@ function addDaysOfWeek(parentElement) {
     return parentElement;
 }
 
-let lastScrollY = 0;
-
 /**
  * Listens for a 'dateSelected' event and updates the value of the active input element with a user-friendly
  * formatted date. This function targets three specific input fields by their global references: `eventDate`,
@@ -1957,26 +2011,24 @@ window.addEventListener('dateSelected', function(e) {
  */
 function updateEvent(newStartTime, newEndTime, isAllDay=false) {
     var event = getEventInstance(newStartTime, newEndTime);
-    getEventNewStartEndTime
     if (isAllDay) {
         event.allDay = true
     }
-    if (new_event) {
+    if (new_event && !clickedEvent) {
         new_event.remove();
         new_event = calendar.addEvent(event);
         let intersectEvent = new_event;
         setTime(new_event)
-    } else if (clickedEvent) {
+    } else if (clickedEvent || undoElement) {
         oldClickedEvent = clickedEvent;
-        clickedEvent.remove()
-        if (undoElement) {
-            oldClickedEvent = undoElement;
-            undoElement.remove();
+        if (clickedEvent) {
+            oldClickedEvent = clickedEvent;
+            clickedEvent.remove();
         }
         undoElement = calendar.addEvent(event);
         clickedEvent = undoElement
-        let intersectEvent = clickedEvent;
-        setTime(clickedEvent);
+        let intersectEvent = undoElement;
+        setTime(undoElement);
     }
     showTime();
     return newStartTime;
@@ -2271,9 +2323,9 @@ function updateSublist(allChangedElements, changed_elements) {
  * together at some point.
  */
 function handleDelete() {
-//    if (undoElement) {
-//        changed_events.push(undoElement);
-//    }
+    if (undoElement) {
+        changed_events.push(undoElement);
+    }
     changed_events.forEach(function(changed_event) {
         calendar.addEvent(changed_event);
     })
@@ -2295,6 +2347,7 @@ function handleUpdate() {
     calendar.gotoDate(oldClickedEvent.start);
     document.querySelector(querySel).scrollTop = position;
 
+    undoElement = '';
     clickedEvent = '';
     oldClickedEvent = '';
     hideEventPopup();
@@ -2303,14 +2356,14 @@ function handleUpdate() {
 // Reverts any changes made during the current action.
 function handleRevert() {
     undoElement.remove();
-    undoElement = '';
-    clickedEvent = '';
-    new_event = '';
     newInfo.revert();
-    hideEventPopup();
+    clickedEvent = oldClickedEvent;
+    if (recurrent_events && recurrent_events.length > 0) {
+    } else {
+        hideEventPopup();
+    }
 }
 
-var undoElement;
 /**
  * Attaches a click event listener to the undoButton. This function first hides any context menu popups and then
  * performs actions based on the `newInfo` state. If there are recurrent events, it shows a discard popup; otherwise, it
@@ -2327,14 +2380,14 @@ document.getElementById('undoButton').addEventListener('click', function() {
     } else {
         handleRevert();
     }
-    if (recurrent_events && recurrent_events.length > 0) {
-        showDiscardPopup();
-    } else {
-        hideUndoPopup();
-        if (new_event) {
-            new_event.remove();
-            new_event = '';
-        }
+
+    hideUndoPopup();
+    if (new_event) {
+        new_event.remove();
+        new_event = '';
+    }
+    if (oldClickedEvent) {
+        setTime(oldClickedEvent);
     }
 });
 
@@ -2572,6 +2625,7 @@ function getEventNewStartEndTime() {
  */
 function handleUpdateEvent() {
     var event = getEvent();
+    undoElement = event;
     var oldStartTime = event.start;
     var oldEndTime = event.end;
 
@@ -2637,9 +2691,17 @@ function handleUpdateAllDayEvent() {
     var {oldStartDate, oldEndDate} = getOldStartEndDates()
     var newStartDate = new Date(convertDateFormat(eventDate.value));
     var newEndDate = new Date(convertDateFormat(eventDateEnd.value));
+    oldEndDate.setHours(23, 59, 59, 999);
+    newEndDate.setHours(23, 59, 59, 999);
     if (oldStartDate.getTime() !== newStartDate.getTime() || oldEndDate.getTime() !== newEndDate.getTime()) {
         if (newStartDate.getTime() <= newEndDate.getTime()) {
-            handleCorrectStartEndDatesInput(newStartDate, newEndDate);
+            if (checkOverlaps(newStartDate, newEndDate).length > 0) {
+                alert("The current event has overlaps");
+                var event = getEvent()
+                setTime(event);
+            } else {
+                handleCorrectStartEndDatesInput(newStartDate, newEndDate);
+            }
         } else {
             // If the new dates are not in order, reset the input fields to reflect the original dates
             eventDate.value = formatDateToUserFriendly(oldStartDate);
@@ -2669,7 +2731,6 @@ function checkIntersectionsFromInputFields() {
 function handleCorrectDateInput(inputDateElement) {
     const querySel = ".fc-scroller.fc-scroller-liquid-absolute"
     let position = document.querySelector(querySel).scrollTop;
-
     if (!getEvent().allDay) {
         var newSTime = handleUpdateEvent();
         if (!newSTime) {
@@ -2700,10 +2761,9 @@ function handleIncorrectDateInput(inputDateElement) {
     }
     inputDateElement.value = formatDateToUserFriendly(dateEnd)
     adjustWidth(inputDateElement);
-    console.log('invalid date format!')
+    hideUndoPopup();
 }
 
-let updateFromInput = false;
 /**
  * Validates and processes an input date element for an event form, handling different scenarios based on the element's role
  * (start date or other) and whether the event is all-day or has potential overlaps.
@@ -2781,6 +2841,7 @@ function updateEventFormInputElement(inputElement){
             alert("The event cannot overlap with existing ones");
             var event = getEvent();
             setTime(event);
+            hideUndoPopup();
         } else {
             // Update an event if there are no overlaps
             handleUpdateEvent();
@@ -2795,7 +2856,6 @@ function updateEventFormInputElement(inputElement){
         } else if (inputElement == eventEndTime) {
             inputElement.value = formatAMPM(event.end);
         }
-        console.log('invalid date format!')
     }
 
     var flag = isValidTimeFormat(inputElement.value)
@@ -2859,9 +2919,15 @@ function getEvent() {
  * @param {Date} recStart - The start date/time for the recurrent event.
  * @param {Date} recEnd - The end date/time for the recurrent event.
  */
-function handleCreateRecurrentEvent(recStart, recEnd) {
+function handleCreateRecurrentEvent(recStart, recEnd, isSubtract=false) {
     recurrent_event = getEventInstance(recStart, recEnd);
-    recurrent_event.allDay = getEvent().allDay;
+    if (!isSubtract) {
+        var allDay = getEvent().allDay;
+    } else {
+        var allDay = false;
+    }
+    isSubtract = false;
+    recurrent_event.allDay = allDay;
     var new_recurrent_event = calendar.addEvent(recurrent_event);
     changed_events.push(new_recurrent_event);
 }
@@ -2937,10 +3003,15 @@ function processCreateRecurrentEvent(element, existingEvents) {
     let recurrentEvent = {startTime: element[0], endTime: element[1]}
     let intersectEvents = filterIntersectingRanges(recurrentEvent, existingEvents)
     let subtractEvents = subtractTimeRanges(recurrentEvent, intersectEvents)
+    var isSubtract = false;
+    if (intersectEvents.length > 0) {
+        hasIntersectionsFlag = true;
+        isSubtract = true;
+    }
     subtractEvents.forEach(function(subtractEvent) {
         let recStart = new Date(subtractEvent.start)
         let recEnd = new Date(subtractEvent.end)
-        handleCreateRecurrentEvent(recStart, recEnd);
+        handleCreateRecurrentEvent(recStart, recEnd, isSubtract=isSubtract);
     })
 }
 
@@ -2960,12 +3031,9 @@ function processRecurrentEvents(event, existingEvents) {
         var isExistingEvent = isExistingEventFunc(element, existingEvents);
         var isBiggerThanStartEvent = element[0].getTime() >= startEvent.getTime();
         if (isExistingEvent || !isBiggerThanStartEvent) {
+            hasIntersectionsFlag = true;
         } else {
-            if (event.allDay) {
-                handleCreateRecurrentEvent(element[0], element[1]);
-            } else {
-                processCreateRecurrentEvent(element, existingEvents);
-            }
+            processCreateRecurrentEvent(element, existingEvents);
         }
     })
 }
@@ -2982,6 +3050,10 @@ function createRecurrentEvents(existingEvents) {
     setNewRecurrentEvents();
     var event = getEvent()
     processRecurrentEvents(event, existingEvents);
+    if (hasIntersectionsFlag) {
+        alert("Your events were cut due to overlap");
+        hasIntersectionsFlag = false;
+    }
     changed_events.push(event);
     allChangedEvents.push(changed_events);
 }
@@ -3090,6 +3162,7 @@ function processSave() {
         createRecurrentEvents(existingEvents);
     } else {
         changed_events.push(new_event);
+        undoElement = new_event;
     }
     clearAndCloseEventPopup();
 }
