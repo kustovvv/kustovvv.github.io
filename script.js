@@ -678,6 +678,15 @@ function onDateClick(info) {
     }
 }
 
+/**
+ * Resets the start and end times of the provided date strings to midnight, with the end time additionally adjusted
+ * to the midnight of the following day.
+ *
+ * @param {string} startTime - The date string representing the start time.
+ * @param {string} endTime - The date string representing the end time.
+ * @returns {Object} - An object containing the new start and end times as strings, both reset to midnight,
+ * with the end time extended to the following day's midnight.
+ */
 function resetTimes(startTime, endTime) {
     // Parse the start and end time strings into Date objects
     const start = new Date(startTime);
@@ -1017,6 +1026,52 @@ function processEventDrop(info, endTime, flag=true) {
  * @param {Object} info - Information about the event being dropped, including start and end times.
  */
 function handleEventDrop(info) {
+    function handleOverlaps() {
+        alert("The current event has overlaps");
+        if (clickedEvent) {
+            info.revert();
+            if (dragAllDay) {
+                undoElement.remove();
+            }
+        } else if (new_event) {
+            new_event.remove();
+            clickedEvent = '';
+            undoElement = '';
+            new_event = '';
+            recurrent_events = []
+            hideRedCircle();
+            closeActiveWindows();
+        }
+        hideUndoPopup();
+    }
+
+    function handleOverlaps2(flag) {
+        var start = info.event.start
+        if (info.event.allDay) {
+            let times = resetTimes(start, addOneHour(start));
+            var startTime = new Date(times.newStartTime)
+            var endTime = new Date(times.newEndTime)
+        } else {
+            var startTime = new Date(start);
+            var endTime = new Date(addOneHour(start));
+        }
+        if (checkOverlaps(startTime, endTime).length > 0) {
+            alert("The event cannot be created because it has overlaps");
+            if (undoElement) {
+                info.revert()
+                undoElement.remove();
+                undoElement = '';
+                hideUndoPopup();
+            }
+            if (new_event) {
+                new_event.remove();
+            }
+            closeActiveWindows();
+        } else {
+            processEventDrop(info, endTime, flag);
+        }
+    }
+
     function setEventEndTime(info) {
         var flag = true;
         // Ensure the event has an end time, setting it to 1 hour after the start time if absent
@@ -1029,54 +1084,17 @@ function handleEventDrop(info) {
         }
         return {endTime, flag}
     }
-    var {endTime, flag} = setEventEndTime(info);// Set the event's end time if needed and get the flag
 
+    // Set the event's end time if needed and get the flag
+    var {endTime, flag} = setEventEndTime(info);
     if (eventSpanMultipleDays) {
         eventSpanMultipleDays = false;
     } else {
         // Check for overlaps excluding all-day events
         if (!info.event.allDay && checkOverlaps(info.event.start, endTime).length > 0) {
-            alert("The current event has overlaps");
-            if (clickedEvent) {
-                info.revert();
-                if (dragAllDay) {
-                    undoElement.remove();
-                }
-            } else if (new_event) {
-                new_event.remove();
-                clickedEvent = '';
-                undoElement = '';
-                new_event = '';
-                recurrent_events = []
-                hideRedCircle();
-                closeActiveWindows();
-            }
-            hideUndoPopup();
+            handleOverlaps();
         } else {
-            var start = info.event.start
-            if (info.event.allDay) {
-                let times = resetTimes(start, addOneHour(start));
-                var startTime = new Date(times.newStartTime)
-                var endTime = new Date(times.newEndTime)
-            } else {
-                var startTime = new Date(start);
-                var endTime = new Date(addOneHour(start));
-            }
-            if (checkOverlaps(startTime, endTime).length > 0) {
-                alert("The event cannot be created because it has overlaps");
-                if (undoElement) {
-                    info.revert()
-                    undoElement.remove();
-                    undoElement = '';
-                    hideUndoPopup();
-                }
-                if (new_event) {
-                    new_event.remove();
-                }
-                closeActiveWindows();
-            } else {
-                processEventDrop(info, endTime, flag);
-            }
+            handleOverlaps2(flag);
         }
     }
 }
@@ -1237,6 +1255,12 @@ function manipulate() {
     });
 }
 
+/**
+ * Adds one hour to the specified date string and returns the updated date as a string.
+ *
+ * @param {string} dateString - The date string to which one hour will be added.
+ * @returns {string} - The updated date with an additional hour, formatted as a string.
+ */
 function addOneHour(dateString) {
     const date = new Date(dateString);
     date.setHours(date.getHours() + 1);
@@ -1283,6 +1307,13 @@ document.addEventListener('DOMContentLoaded', function() {
     get_existing_unavailable_time();
 });
 
+/**
+ * Splits a date range into individual day segments, handling full days and partial days separately.
+ *
+ * @param {string} startTime - The ISO string representing the start time of the overall date range.
+ * @param {string} endTime - The ISO string representing the end time of the overall date range.
+ * @returns {Array} ranges - An array of objects, each representing a date range within the original date range.
+ */
 function splitDateRangeByDay(startTime, endTime) {
     let start = new Date(startTime);
     let end = new Date(endTime);
@@ -2114,42 +2145,6 @@ function isValidDateFormat(inputString) {
 }
 
 /**
- * Compares two time strings to determine if the first time occurs before the second time, considering the special case
- * where the comparison is against "12:00am".
- *
- * @param {string} firstInput - The first time input in 12-hour format (e.g., "11:59pm").
- * @param {string} secondInput - The second time input in 12-hour format (e.g., "12:00am").
- * @returns {boolean} - Returns true if the first time is less than the second time.
- */
-function isTimeLessThan(firstInput, secondInput) {
-    // Convert time to 24-hour format, correctly handling inputs without a space before am/pm
-    function convertTo24Hour(timeStr) {
-        // Adjusting to capture the modifier directly connected to the time
-        let [time, modifier] = timeStr.match(/(\d+:\d+)(am|pm)/i).slice(1);
-        let [hours, minutes] = time.split(':');
-
-        if (hours === '12') {
-            hours = '00';
-        }
-
-        if (modifier.toLowerCase() === 'pm') {
-            hours = parseInt(hours, 10) + 12;
-        }
-
-        return parseInt(hours) * 60 + parseInt(minutes);
-    }
-
-    if (secondInput === '12:00am' && firstInput !== '12:00am') {
-        return true
-    }
-    const firstTime = convertTo24Hour(firstInput);
-    const secondTime = convertTo24Hour(secondInput);
-
-    // Compare the two times
-    return firstTime < secondTime;
-}
-
-/**
  * Retrieves the current date and constructs a string representation that includes the date in a human-readable format,
  * the time set to midnight, and the timezone offset from GMT. The timezone is hardcoded to Eastern European Standard Time
  * for demonstration, but the actual offset is dynamically calculated based on the system's local timezone.
@@ -2625,6 +2620,16 @@ function getNewStartEndTimes() {
  */
 function getEventNewStartEndTime() {
     var {newDate, newStartTime, newEndTime} = getNewStartEndTimes()
+    if (newStartTime > newEndTime) {
+        newEndTime = increaseDateTime(newStartTime, 1)
+    }
+
+    // Check if the end time is on a different day from the start time
+    if (newStartTime.getDate() !== newEndTime.getDate()) {
+        newEndTime = new Date(newStartTime);
+        newEndTime.setHours(23, 59, 59, 999);
+    }
+
     if (eventEndTime.value === '12:00am') {
         if (newStartTime > newEndTime) {
             var newEndTime = concatenateDateTime(newDate, '11:59pm');
@@ -2811,6 +2816,7 @@ function handleDateInput(inputDateElement) {
     }
 }
 
+// Attach a keypress event listener on Enter button to all input fields
 var inputFields = [eventDate, eventDateEnd, eventStartTime, eventEndTime]
 inputFields.forEach(function(inputField) {
     inputField.addEventListener('keypress', function(event) {
@@ -2884,7 +2890,7 @@ function updateEventFormInputElement(inputElement){
     }
 
     var flag = isValidTimeFormat(inputElement.value)
-    flag = flag === true ? isTimeLessThan(eventStartTime.value, eventEndTime.value) : false;
+    flag = flag === true ? eventStartTime.value !== eventEndTime.value : false;
     if (flag) {
         handleCorrectInputTimeFromField();
     } else {
@@ -2892,6 +2898,12 @@ function updateEventFormInputElement(inputElement){
     }
 }
 
+/**
+ * Attaches click event listeners to the input fields for the event's start and end times. Upon clicking one of these fields,
+ * the function computes the positioning of the time picker relative to the clicked input field and toggles its visibility.
+ *
+ * @param {HTMLElement[]} inputFields - An array containing the input fields for the event's start and end times.
+ */
 [eventStartTime, eventEndTime].forEach(function(inputField) {
     inputField.addEventListener('click', function() {
         var rect = inputField.getBoundingClientRect()
@@ -2905,29 +2917,21 @@ function updateEventFormInputElement(inputElement){
     })
 })
 
-function populateTimes(timeField) {
-    var event = getEvent();
-    var currentTime = new Date(event.start);
-    var endOfDay = new Date(event.start);
-    var startTimeValue = eventStartTime.value;
-    var startTime = new Date(event.start);
-    var startTimeParts = startTimeValue.match(/(\d+):(\d+)(am|pm)/);
-    if (startTimeParts) {
-        // Adjust hours for 12-hour format and set up the start time date object
-        var hours = parseInt(startTimeParts[1], 10) + (startTimeParts[3] === 'pm' && startTimeParts[1] !== '12' ? 12 : 0);
-        var minutes = parseInt(startTimeParts[2], 10);
-        startTime.setHours(hours, minutes, 0, 0);
-        if (hours === 12 && startTimeParts[3] === 'am') {
-            startTime.setHours(0); // Adjust for midnight
-        }
-    }
-
-    if (timeField === eventStartTime) {
-        currentTime.setHours(0, 0, 0, 0);
-    }
-    endOfDay.setHours(23, 59, 59, 999);
-    timePicker.innerHTML = '';
-
+/**
+ * Fills a specified time picker element with time options, iterating from the start of the day to the end of the day.
+ * This function creates selectable time slots for either the start or end time of an event, adjusting in 15-minute
+ * increments. For end times, it additionally calculates and displays the duration from the start time to each end time
+ * option. Selecting a time option updates the associated input field and closes the picker.
+ *
+ * @param {HTMLElement} timeField - An input field for time selection that triggers the time picker(startTime or endTime)
+ * @param {Date} currentTime - The current time from which the picker options will start: the start of the day for startTime
+ * and the startTime + 15 min for endTime.
+ * @param {Date} startTime - The event's start time, used to calculate duration until end times.
+ * @param {Date} endOfDay - The latest possible time for the day, set to 23:59:59.999.
+ * @param {HTMLElement} eventStartTime - The input field for the event's start time, used for comparison.
+ * @param {HTMLElement} eventEndTime - The input field for the event's end time, used for comparison.
+ */
+function generateTimes(timeField, currentTime, startTime, endOfDay, eventStartTime, eventEndTime) {
     while (currentTime <= endOfDay) {
         var timeOption = document.createElement('div');
         if (timeField === eventEndTime) {
@@ -2963,6 +2967,40 @@ function populateTimes(timeField) {
             currentTime.setMinutes(currentTime.getMinutes() + 15);
         }
     }
+}
+
+/**
+ * Populates a time picker with selectable times based on the event's start time, adjusting for a 12-hour format as needed.
+ * It sets the time field with a range of times from the start of the event's day to the end of the day. This function also
+ * attaches an event listener to close the time picker when clicking outside of it.
+ *
+ * @param {HTMLElement} timeField - An input field for time selection that triggers the time picker(startTime or endTime)
+ */
+function populateTimes(timeField) {
+    var event = getEvent();
+    var currentTime = new Date(event.start);
+    var endOfDay = new Date(event.start);
+    var startTimeValue = eventStartTime.value;
+    var startTime = new Date(event.start);
+    var startTimeParts = startTimeValue.match(/(\d+):(\d+)(am|pm)/);
+    if (startTimeParts) {
+        // Adjust hours for 12-hour format and set up the start time date object
+        var hours = parseInt(startTimeParts[1], 10) + (startTimeParts[3] === 'pm' && startTimeParts[1] !== '12' ? 12 : 0);
+        var minutes = parseInt(startTimeParts[2], 10);
+        startTime.setHours(hours, minutes, 0, 0);
+        if (hours === 12 && startTimeParts[3] === 'am') {
+            startTime.setHours(0); // Adjust for midnight
+        }
+    }
+
+    // If clicked input field is start time input, then it should have times from the start of the day(12:00am)
+    if (timeField === eventStartTime) {
+        currentTime.setHours(0, 0, 0, 0);
+    }
+    endOfDay.setHours(23, 59, 59, 999);
+    timePicker.innerHTML = '';
+
+    generateTimes(timeField, currentTime, startTime, endOfDay, eventStartTime, eventEndTime);
 
     // Event listener to close the picker if clicked outside
     document.addEventListener('click', function(e) {
