@@ -86,6 +86,7 @@ var radioDeleteThisEvent = document.getElementById('radio-delete-this-event');
 var radioDeleteAllEvents = document.getElementById('radio-delete-all-events');
 
 var contextMenuPopup = document.getElementById('context-menu-popup');
+var timePicker = document.getElementById('timePicker');
 
 var allChangedEvents = [];
 
@@ -93,6 +94,8 @@ var hasIntersectionsFlag = false;
 var dragAllDay = false;
 var undoElement;
 let updateFromInput = false;
+var oldEvent;
+var eventSpanMultipleDays = false;
 
 // Show contextMenuPopup element.
 function showContextMenuPopup() {
@@ -833,21 +836,13 @@ function showTime() {
     if (clickedEvent && clickedEvent.allDay === true || new_event && new_event.allDay === true) {
         showOnlyDays();
     } else if (clickedEvent && isDatePartDifferent(clickedEvent.start, clickedEvent.end) && !new_event) {
-        if (!clickedEvent.end){
-            showFirstDayTimes();
-        } else {
-            showDefaultDaysTimes();
-        }
+        showFirstDayTimes();
     } else {
         let event = getEvent();
         if (event) {
             let adjustedEndDate = new Date(event.start);
             adjustedEndDate.setHours(23, 59, 59, 999);
-            if (event.end > adjustedEndDate) {
-                showDefaultDaysTimes();
-            } else {
-                showFirstDayTimes();
-            }
+            showFirstDayTimes();
         }
     }
     toggleMoreSaveButtons();
@@ -988,7 +983,6 @@ function processEventDrop(info, endTime, flag=true) {
 
     if (clickedEvent) {
         undoElement = clickedEvent;
-        showUndoPopup(info);
     }
 
     if (!clickedEvent && !new_event) {
@@ -998,9 +992,21 @@ function processEventDrop(info, endTime, flag=true) {
     if (flag) {
         update(info);
     }
-
-    setTime(info.event);
+    if (eventSpanMultipleDays) {
+        if (new_event) {
+            new_event = oldEvent;
+        } else if (clickedEvent) {
+            clickedEvent = oldEvent;
+        }
+        eventSpanMultipleDays = false;
+    } else {
+        setTime(info.event);
+        if (clickedEvent) {
+            showUndoPopup(info);
+        }
+    }
     showTime();
+    showPopupOnEventClick(x, y);
 }
 
 /**
@@ -1024,48 +1030,53 @@ function handleEventDrop(info) {
         return {endTime, flag}
     }
     var {endTime, flag} = setEventEndTime(info);// Set the event's end time if needed and get the flag
-    // Check for overlaps excluding all-day events
-    if (!info.event.allDay && checkOverlaps(info.event.start, endTime).length > 0) {
-        alert("The current event has overlaps");
-        if (clickedEvent) {
-            info.revert();
-            if (dragAllDay) {
-                undoElement.remove();
-            }
-        } else if (new_event) {
-            new_event.remove();
-            clickedEvent = '';
-            undoElement = '';
-            new_event = '';
-            recurrent_events = []
-            hideRedCircle();
-            closeActiveWindows();
-        }
-        hideUndoPopup();
+
+    if (eventSpanMultipleDays) {
+        eventSpanMultipleDays = false;
     } else {
-        var start = info.event.start
-        if (info.event.allDay) {
-            let times = resetTimes(start, addOneHour(start));
-            var startTime = new Date(times.newStartTime)
-            var endTime = new Date(times.newEndTime)
-        } else {
-            var startTime = new Date(start);
-            var endTime = new Date(addOneHour(start));
-        }
-        if (checkOverlaps(startTime, endTime).length > 0) {
-            alert("The event cannot be created because it has overlaps");
-            if (undoElement) {
-                info.revert()
-                undoElement.remove();
-                undoElement = '';
-                hideUndoPopup();
-            }
-            if (new_event) {
+        // Check for overlaps excluding all-day events
+        if (!info.event.allDay && checkOverlaps(info.event.start, endTime).length > 0) {
+            alert("The current event has overlaps");
+            if (clickedEvent) {
+                info.revert();
+                if (dragAllDay) {
+                    undoElement.remove();
+                }
+            } else if (new_event) {
                 new_event.remove();
+                clickedEvent = '';
+                undoElement = '';
+                new_event = '';
+                recurrent_events = []
+                hideRedCircle();
+                closeActiveWindows();
             }
-            closeActiveWindows();
+            hideUndoPopup();
         } else {
-            processEventDrop(info, endTime, flag);
+            var start = info.event.start
+            if (info.event.allDay) {
+                let times = resetTimes(start, addOneHour(start));
+                var startTime = new Date(times.newStartTime)
+                var endTime = new Date(times.newEndTime)
+            } else {
+                var startTime = new Date(start);
+                var endTime = new Date(addOneHour(start));
+            }
+            if (checkOverlaps(startTime, endTime).length > 0) {
+                alert("The event cannot be created because it has overlaps");
+                if (undoElement) {
+                    info.revert()
+                    undoElement.remove();
+                    undoElement = '';
+                    hideUndoPopup();
+                }
+                if (new_event) {
+                    new_event.remove();
+                }
+                closeActiveWindows();
+            } else {
+                processEventDrop(info, endTime, flag);
+            }
         }
     }
 }
@@ -1085,6 +1096,7 @@ function handleEventDragStart(info) {
                 new_event.remove();
                 closeActiveWindows();
             } else {
+                oldEvent = new_event;
                 var infoEvent = new Date(info.event.start);
                 var newEvent = new Date(new_event.start);
 
@@ -1117,17 +1129,18 @@ function handleEventResize(info) {
         hideUndoPopup();
     } else {
         if (clickedEvent) {
-            undoElement = info.event;
             showUndoPopup(info);
         } else if (new_event && info.event.start.getTime() !== new_event.start.getTime()) {
             new_event.remove();
             new_event = '';
         } else if (!clickedEvent && !new_event) {
-            undoElement = info.event;
-            clickedEvent = undoElement;
             showUndoPopup(info);
         }
+        undoElement = info.event;
         update(info);
+        var x = lastKnownMousePosition.x
+        var y = lastKnownMousePosition.y
+        showPopupOnEventClick(x, y);
     }
 }
 
@@ -1586,6 +1599,8 @@ function handleDefaultDayBlock(info, startDate, endDate) {
         // If the end date is after the adjusted end date, revert the resize
         alert('Events cannot span multiple days.');
         info.revert();
+        hideUndoPopup();
+        eventSpanMultipleDays = true;
     } else {
         updateEvent(startDate, endDate);
     }
@@ -2020,10 +2035,10 @@ function updateEvent(newStartTime, newEndTime, isAllDay=false) {
         let intersectEvent = new_event;
         setTime(new_event)
     } else if (clickedEvent || undoElement) {
-        oldClickedEvent = clickedEvent;
-        if (clickedEvent) {
-            oldClickedEvent = clickedEvent;
-            clickedEvent.remove();
+        oldClickedEvent = undoElement;
+        if (undoElement) {
+            oldClickedEvent = undoElement;
+            undoElement.remove();
         }
         undoElement = calendar.addEvent(event);
         clickedEvent = undoElement
@@ -2796,10 +2811,20 @@ function handleDateInput(inputDateElement) {
     }
 }
 
+var inputFields = [eventDate, eventDateEnd, eventStartTime, eventEndTime]
+inputFields.forEach(function(inputField) {
+    inputField.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            inputField.blur();
+        }
+    });
+})
+
 // Attach a blur event listener to eventDate field
 eventDate.addEventListener('blur', function() {
     handleDateInput(eventDate);
 });
+
 
 // Attach a blur event listener to eventDateEnd field
 eventDateEnd.addEventListener('blur', function() {
@@ -2866,6 +2891,86 @@ function updateEventFormInputElement(inputElement){
         handleIncorrectInputTimeFromField();
     }
 }
+
+[eventStartTime, eventEndTime].forEach(function(inputField) {
+    inputField.addEventListener('click', function() {
+        var rect = inputField.getBoundingClientRect()
+        var top = rect.top;
+        var left = rect.left;
+        timePicker.style.top = `${top + inputField.offsetHeight}px`;
+        timePicker.style.left = `${left}px`;
+
+        populateTimes(inputField);
+        timePicker.classList.toggle('show');
+    })
+})
+
+function populateTimes(timeField) {
+    var event = getEvent();
+    var currentTime = new Date(event.start);
+    var endOfDay = new Date(event.start);
+    var startTimeValue = eventStartTime.value;
+    var startTime = new Date(event.start);
+    var startTimeParts = startTimeValue.match(/(\d+):(\d+)(am|pm)/);
+    if (startTimeParts) {
+        // Adjust hours for 12-hour format and set up the start time date object
+        var hours = parseInt(startTimeParts[1], 10) + (startTimeParts[3] === 'pm' && startTimeParts[1] !== '12' ? 12 : 0);
+        var minutes = parseInt(startTimeParts[2], 10);
+        startTime.setHours(hours, minutes, 0, 0);
+        if (hours === 12 && startTimeParts[3] === 'am') {
+            startTime.setHours(0); // Adjust for midnight
+        }
+    }
+
+    if (timeField === eventStartTime) {
+        currentTime.setHours(0, 0, 0, 0);
+    }
+    endOfDay.setHours(23, 59, 59, 999);
+    timePicker.innerHTML = '';
+
+    while (currentTime <= endOfDay) {
+        var timeOption = document.createElement('div');
+        if (timeField === eventEndTime) {
+            currentTime.setMinutes(currentTime.getMinutes() + 15);
+        }
+        var time = currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+        time = time.replace(' PM', 'pm').replace(' AM', 'am');
+
+        if (timeField === eventEndTime) {
+            // Calculate time difference for end time slots
+            var diff = (currentTime - startTime) / 60000; // diff in minutes
+            var diffHours = Math.floor(diff / 60);
+            var diffMinutes = diff % 60;
+            var timeDiffText = '';
+            if (diff >= 60) {
+                // Display in hours and fractions if more than an hour
+                timeDiffText = ` (${diffHours + diffMinutes / 60} hrs)`;
+            } else {
+                // Otherwise, just display the minutes
+                timeDiffText = ` (${diffMinutes} mins)`;
+            }
+            time += timeDiffText;
+        }
+
+        timeOption.textContent = time;
+        timeOption.onclick = function(e) {
+            timeField.value = e.target.textContent.split(' ')[0];
+            timePicker.classList.remove('show');
+            updateEventFormInputElement(timeField);
+        };
+        timePicker.appendChild(timeOption);
+        if (timeField === eventStartTime) {
+            currentTime.setMinutes(currentTime.getMinutes() + 15);
+        }
+    }
+
+    // Event listener to close the picker if clicked outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== timeField && e.target.parentNode !== timePicker) {
+            timePicker.classList.remove('show');
+        }
+    }, true);
+};
 
 // Attach a blur event listener to eventStartTime field
 eventStartTime.addEventListener('blur', function() {
